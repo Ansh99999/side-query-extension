@@ -849,7 +849,10 @@ export class SideQueryScreen implements SideScreen {
     const nativeEditor = editor?.render(width) ?? [];
     const editorBudget = Math.max(0, rows - footer.length - statusLines.length - 1);
     const editorLines = this.cropEditor(nativeEditor, editorBudget);
-    this.bodyHeight = Math.max(0, rows - editorLines.length - footer.length - statusLines.length);
+    // Main's empty above-editor widget container contributes one fixed spacer.
+    // Keep it outside the scrollable transcript, including when the body is full.
+    const editorSpacer = editorLines.length ? [""] : [];
+    this.bodyHeight = Math.max(0, rows - editorLines.length - editorSpacer.length - footer.length - statusLines.length);
     const body = this.renderMessages(width);
     if (this.scrollFromBottom > 0 && this.previousBodyWidth === width && body.length > this.previousBodyLength) {
       this.scrollFromBottom += body.length - this.previousBodyLength;
@@ -861,8 +864,8 @@ export class SideQueryScreen implements SideScreen {
     this.bodyStart = start;
     const visible = body.slice(start, start + this.bodyHeight);
     while (visible.length < this.bodyHeight) visible.push("");
-    this.editorRow = visible.length + statusLines.length;
-    return [...visible, ...statusLines, ...editorLines, ...footer];
+    this.editorRow = visible.length + statusLines.length + editorSpacer.length;
+    return [...visible, ...statusLines, ...editorSpacer, ...editorLines, ...footer];
   }
 
   private cropEditor(native: string[], budget: number): string[] {

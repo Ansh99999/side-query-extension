@@ -13,7 +13,7 @@ import {
   type KeybindingsManager,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { CURSOR_MARKER, Editor, getKeybindings, Input, matchesKey, parseKey, stripTerminalSequences, visibleWidth, type Component, type TUI, type TuiMouseEvent } from "@earendil-works/pi-tui";
+import { CURSOR_MARKER, Editor, getKeybindings, Input, matchesKey, parseKey, ScrollView, stripTerminalSequences, visibleWidth, type Component, type TUI, type TuiMouseEvent } from "@earendil-works/pi-tui";
 import { relativeTime, SideQueryScreen } from "../src/ui.ts";
 import type { ScreenActions, SideScreenState, ThreadSummary } from "../src/types.ts";
 
@@ -582,6 +582,70 @@ test("reply pages and native mouse wheel scroll independently of the editor", ()
   assert.equal(h.state.draft, "draft");
   h.state.messages[0].text += "\nline 70\nline 71";
   assert.doesNotMatch(h.render(40), /line 71/, "streaming should retain the scrolled viewport");
+});
+
+test("a full native transcript reserves the main editor spacer and uses the same scroll viewport", () => {
+  const reply = assistantMessage(Array.from({ length: 70 }, (_, index) => `line ${index}`).join("\n"));
+  const clean = (lines: string[]) => lines.map((line) => stripTerminalSequences(line).trimEnd());
+  for (const rows of [8, 14, 24]) {
+    const h = harness({ screen: "chat", draft: "draft", nativeMessages: [reply] }, rows);
+    const nativeEditor = (h.screen as unknown as { editors: Map<string, { editor: CustomEditor }> }).editors.get("one")!.editor;
+    const editorLines = nativeEditor.render(80);
+    // Main's dock contains the editor, the requested one-line footer, and its
+    // native Spacer(1) above the editor; the remaining rows belong to ScrollView.
+    const viewportHeight = rows - editorLines.length - 1 - 1;
+    const nativeViewport = new ScrollView(new AssistantMessageComponent(reply), { follow: "end" });
+    nativeViewport.updateLayout(nativeViewport.render(80).length, viewportHeight, () => {});
+    const expectedBody = () => nativeViewport.render(80).slice(nativeViewport.scrollTop, nativeViewport.scrollTop + viewportHeight);
+    let lines = h.screen.render(80);
+    assert.deepEqual(clean(lines.slice(0, viewportHeight)), clean(expectedBody()));
+    assert.equal(stripTerminalSequences(lines[viewportHeight]).trim(), "", "the last transcript row cannot consume the editor spacer");
+    assert.deepEqual(clean(lines.slice(viewportHeight + 1, -1)), clean(editorLines));
+    assert.match(stripTerminalSequences(lines[viewportHeight - 1]), /line 69/);
+    assert.ok(lines.every((line) => visibleWidth(line) === 80));
+
+    h.screen.handleInput("\x1b[5~");
+    nativeViewport.scrollBy(-viewportHeight);
+    lines = h.screen.render(80);
+    assert.deepEqual(clean(lines.slice(0, viewportHeight)), clean(expectedBody()), "page size matches the native transcript viewport");
+    assert.equal(stripTerminalSequences(lines[viewportHeight]).trim(), "");
+    h.screen.handleInput("\x1b[6~");
+    nativeViewport.scrollToEnd();
+    assert.deepEqual(clean(h.screen.render(80).slice(0, viewportHeight)), clean(expectedBody()));
+
+    let mouseRow: number | undefined;
+    nativeEditor.handleMouse = (event) => { mouseRow = event.y; return { handled: true }; };
+    const cursor = h.screen.render(80).findIndex((line) => line.includes(CURSOR_MARKER));
+    const click = { type: "click", button: "left", x: 3, y: cursor, screenX: 3, screenY: cursor,
+      width: 80, height: rows, shift: false, ctrl: false, alt: false } as TuiMouseEvent;
+    assert.equal(h.screen.handleMouse(click)?.handled, true);
+    assert.equal(mouseRow, 1, "screen coordinates account for the fixed spacer before the native editor");
+    assert.equal(h.screen.handleMouse({ ...click, y: viewportHeight }), undefined, "the spacer is outside both transcript and editor");
+  }
+});
+
+test("tiny chat terminals keep the native cursor and omit the spacer when no editor can render", () => {
+  const reply = assistantMessage("last transcript line");
+  const h = harness({ screen: "chat", draft: "draft", nativeMessages: [reply] }, 5);
+  for (const rows of [3, 4, 5]) {
+    h.terminal.rows = rows;
+    const lines = h.screen.render(80);
+    const internal = h.screen as unknown as { editorRow: number; bodyHeight: number };
+    assert.equal(lines.length, rows);
+    assert.ok(lines.some((line) => line.includes(CURSOR_MARKER)), `keep the cursor at height ${rows}`);
+    assert.equal(stripTerminalSequences(lines[internal.editorRow - 1]).trim(), "");
+    assert.equal(internal.bodyHeight, 0);
+    assert.ok(lines.every((line) => visibleWidth(line) === 80));
+  }
+  h.terminal.rows = 2;
+  let lines = h.screen.render(80);
+  assert.equal(lines.length, 2);
+  assert.ok(!lines.some((line) => line.includes(CURSOR_MARKER)));
+  assert.match(stripTerminalSequences(lines[0]), /last transcript line/);
+  h.terminal.rows = 1;
+  lines = h.screen.render(80);
+  assert.equal(lines.length, 1);
+  assert.equal(stripTerminalSequences(lines[0]).trim(), "^N new · ^D delete · Alt+T tools · ^/ main");
 });
 
 test("relative activity labels use compact human times", () => {

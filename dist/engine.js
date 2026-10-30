@@ -180,10 +180,10 @@ function sideResources(ctx, settingsManager, hooks, toolsEnabled) {
 }
 function activityFor(event, current) {
     switch (event.type) {
-        case "tool_execution_start": return event.toolName === "request_main_action" ? "Waiting for confirmation…" : `Using ${event.toolName}…`;
+        case "tool_execution_start": return "Working";
         case "tool_execution_end":
         case "compaction_end":
-        case "auto_retry_end": return "Answering…";
+        case "auto_retry_end": return "Working";
         case "compaction_start": return "Compacting conversation…";
         case "auto_retry_start": return `Retrying (${event.attempt}/${event.maxAttempts})…`;
         case "agent_settled": return "";
@@ -261,7 +261,7 @@ export class SideQueryEngine {
         this.promptReady = new Promise((resolve) => { this.resolvePromptReady = resolve; });
         let unsubscribe;
         let publish;
-        let activity = "Answering…";
+        let activity = "Working";
         let partial;
         const titleDue = !thread.titleGenerated && !thread.messages.some((message) => message.role === "assistant" &&
             (message.stopReason === "stop" || message.stopReason === "length") && messageText(message).trim() &&

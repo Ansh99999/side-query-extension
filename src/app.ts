@@ -380,7 +380,7 @@ export class SideQueryApp {
     this.state.busy = true;
     this.replyCancelled = false;
     this.state.error = undefined;
-    this.state.activity = "Thinking";
+    this.state.activity = "Working";
     this.state.activeTools = [];
     this.state.draft = "";
     this.refresh();

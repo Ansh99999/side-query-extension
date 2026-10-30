@@ -221,7 +221,7 @@ for (const receipt of ["Action declined. No main action ran.", "Approved and que
     await f.run("Launch two agents through the main conversation");
     assert.equal(f.actions.length, 1);
     assert.equal(text(f.thread.messages.find((message) => message.role === "toolResult")), receipt);
-    assert.ok(f.updates.some((update) => update.activity === "Waiting for confirmation…"));
+    assert.ok(f.updates.some((update) => update.activity === "Working"));
   });
 }
 
