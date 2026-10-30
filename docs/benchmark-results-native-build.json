@@ -1,0 +1,31 @@
+{
+  "baseUpstreamCommit": "7306219f2070af4429816e8879613057602ef814",
+  "piBoltVersion": "1.0.7",
+  "piVersion": "1.4.0",
+  "buildPlatform": "linux-arm64",
+  "aotCpu": "baseline",
+  "jit": false,
+  "kitCopy": "/tmp/side-query-native-kit/pi-bolt-kit-linux-arm64",
+  "output": "/tmp/side-query-native-pi",
+  "files": {
+    "runtimeArchive": {
+      "path": "/home/ubuntu/.pi-bolt/cache/a7177cf427235c4b-pi-bolt-runtime-linux-arm64.tar.gz",
+      "sha256": "a7177cf427235c4b2c811c2b88399d76f05979a3a6600751ecb22b7590c6d8a6"
+    },
+    "kitArchive": {
+      "path": "/home/ubuntu/.pi-bolt/cache/146aff9f595fb532-pi-bolt-kit-linux-arm64.tar.gz",
+      "sha256": "146aff9f595fb53208e238d90554778bf17d7599a8fa02cef234bcebcfa12e86"
+    },
+    "patch": {
+      "path": "/home/ubuntu/projects/side-query-extension/patches/pi-bolt-native-mjs.patch",
+      "sha256": "8462242eddf445c4172ac5d1e200611d9c8c2902aeb670600de4e17b6ea3da3c"
+    },
+    "binary": {
+      "path": "/tmp/side-query-native-pi/pi",
+      "sha256": "a2f3254c617ade54e6caab78a44e58252e3ceaef3dd46dceba6708c23df53af3"
+    }
+  },
+  "buildArrangement": "Pi-Bolt compile requires a nonempty extension set, so an empty native-build-sentinel factory was compiled in. The benchmark does not discover that sentinel; side-query is loaded from disk and was not compiled into this binary.",
+  "nativeEsmReload": "Reload reruns factories using stock jiti routing. Native ESM modules may stay cached; restart after editing modules.",
+  "actualAndroidDeviceTested": false
+}

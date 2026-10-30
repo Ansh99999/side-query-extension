@@ -1,0 +1,89 @@
+# Pi-Bolt 1.0.7 / Pi 1.4.0 native .mjs startup path.
+# Base upstream commit: 7306219f2070af4429816e8879613057602ef814
+# Source checkout: git apply --include=packages/coding-agent/src/core/extensions/loader.ts PATCH
+# Unpacked compile kit's tree: git apply --include=packages/coding-agent/dist/core/extensions/loader.js PATCH
+# This intentionally keeps jiti for subsequent reloads and all .ts/.js entries.
+# Jiti may native-import cached ESM on reload, as it does in the stock host.
+--- a/packages/coding-agent/src/core/extensions/loader.ts
++++ b/packages/coding-agent/src/core/extensions/loader.ts
+@@ -6,7 +6,7 @@
+ import * as fs from "node:fs";
+ import { createRequire } from "node:module";
+ import * as path from "node:path";
+-import { fileURLToPath } from "node:url";
++import { fileURLToPath, pathToFileURL } from "node:url";
+ import type { Provider } from "@earendil-works/pi-ai";
+ import type { KeyId } from "@earendil-works/pi-tui";
+ import type { createJiti } from "jiti";
+@@ -49,6 +49,10 @@
+ const isTypeScriptSourceRuntime = !isBunBinary && path.extname(fileURLToPath(import.meta.url)) === ".ts";
+ const usesEmbeddedModules = isBunBinary || isNodeSeaBinary || isBundledNode;
+ 
++// Native .mjs entry points are an opt-in startup fast path. After cache invalidation,
++// previously attempted entries return to stock jiti reload behavior.
++const nativeEntryAttempts = new Set<string>();
++
+ let createJitiPromise: Promise<typeof createJiti> | undefined;
+ 
+ function getCreateJiti(): Promise<typeof createJiti> {
+@@ -611,6 +615,19 @@
+ 		}
+ 	}
+ 
++	if (PIBOLT && isBunBinary && path.extname(extensionPath) === ".mjs" && !nativeEntryAttempts.has(extensionPath)) {
++		// Remember before import: a native failure must not evaluate the module twice in one load.
++		nativeEntryAttempts.add(extensionPath);
++		provideModulesToFiles(
++			PIBOLT.jit ? PI_MODULE_NAMES : [...PI_MODULE_NAMES, ...JIT_ONLY_PACKAGES],
++			getVirtualModules,
++		);
++		const factory = (await import(pathToFileURL(extensionPath).href)).default as ExtensionFactory;
++		if (typeof factory !== "function") return undefined;
++		if (isCurrentCacheToken(cacheToken)) extensionCache.set(extensionPath, factory);
++		return factory;
++	}
++
+ 	const createJitiImpl = await getCreateJiti();
+ 	// Compiled binaries and the bundled Node distribution use embedded modules.
+ 	// Source TypeScript reuses host modules and root tsconfig paths. Unbundled
+--- a/packages/coding-agent/dist/core/extensions/loader.js
++++ b/packages/coding-agent/dist/core/extensions/loader.js
+@@ -5,7 +5,7 @@
+ import * as fs from "node:fs";
+ import { createRequire } from "node:module";
+ import * as path from "node:path";
+-import { fileURLToPath } from "node:url";
++import { fileURLToPath, pathToFileURL } from "node:url";
+ import { CONFIG_DIR_NAME, getAgentDir, isBunBinary, isBundledNode } from "../../config.js";
+ import { isHerdrPiIntegration } from "../../extensions/herdr/integration-file.js";
+ import { PIBOLT } from "../../pi-bolt.js";
+@@ -24,6 +24,9 @@
+     process.getBuiltinModule("node:sea")?.isSea() === true;
+ const isTypeScriptSourceRuntime = !isBunBinary && path.extname(fileURLToPath(import.meta.url)) === ".ts";
+ const usesEmbeddedModules = isBunBinary || isNodeSeaBinary || isBundledNode;
++// Native .mjs entry points are an opt-in startup fast path. After cache invalidation,
++// previously attempted entries return to stock jiti reload behavior.
++const nativeEntryAttempts = new Set();
+ let createJitiPromise;
+ function getCreateJiti() {
+     createJitiPromise ??= (usesEmbeddedModules ? import("./jiti-static-loader.js") : import("./jiti-loader.js")).then((module) => module.createJiti);
+@@ -505,6 +508,19 @@
+             return cachedFactory;
+         }
+     }
++    if (PIBOLT && isBunBinary && path.extname(extensionPath) === ".mjs" && !nativeEntryAttempts.has(extensionPath)) {
++        // Remember before import: a native failure must not evaluate the module twice in one load.
++        nativeEntryAttempts.add(extensionPath);
++        provideModulesToFiles(
++            PIBOLT.jit ? PI_MODULE_NAMES : [...PI_MODULE_NAMES, ...JIT_ONLY_PACKAGES],
++            getVirtualModules,
++        );
++        const factory = (await import(pathToFileURL(extensionPath).href)).default;
++        if (typeof factory !== "function") return undefined;
++        if (isCurrentCacheToken(cacheToken)) extensionCache.set(extensionPath, factory);
++        return factory;
++    }
++
+     const createJitiImpl = await getCreateJiti();
+     // Compiled binaries and the bundled Node distribution use embedded modules.
+     // Source TypeScript reuses host modules and root tsconfig paths. Unbundled

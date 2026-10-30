@@ -1,0 +1,1219 @@
+{
+  "measuredAt": "2026-10-30T18:51:40.140Z",
+  "metric": "parent hrtime, spawn to process close, stdout/stderr piped",
+  "machine": {
+    "platform": "linux",
+    "architecture": "arm64",
+    "kernel": "7.0.0-1006-aws",
+    "cpu": "Neoverse-N1",
+    "logicalCpus": 4,
+    "benchmarkRuntime": "v24.22.0",
+    "termuxVersion": null,
+    "actualAndroidDeviceTested": false
+  },
+  "package": {
+    "name": "side-query-extension",
+    "version": "0.1.0",
+    "entries": [
+      "./index.mjs"
+    ],
+    "stagedWithoutNodeModules": true,
+    "filesSha256": {
+      "dist/actions.js": "5a965a970b62a74b26f412ce5ed608ca9a21ab799c4c7ba2b8c1b6fac6645c92",
+      "dist/app.js": "2547c51b82e390cc23a03478dab40a3e0d8a17e401e94b15b7fa2fe2ff00a46c",
+      "dist/engine.js": "6f67fd25132f175517f3788080dd49c0bfa2eb827365c6e718218844f3991a31",
+      "dist/store.js": "7028a494a494b802eada6bf4e7b81dd608965bc8a67666db83dc8d86e506b1a9",
+      "dist/types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "dist/ui.js": "4df658e21570cc7bdc28846516ffade8deb29a4cd211597c9d13615a5635c045",
+      "index.mjs": "9e1c9b4e82a046693b353e85e319848cdacd6c0f6f81e5e49814043d6bdd395e",
+      "package.json": "4d4457b150258bff1eff1d7df7f2502d9fe54d11aa25d5a5c7145c7ed1397e21"
+    },
+    "compiledCaseUsesOriginalPathForFingerprint": false
+  },
+  "binaryHashes": {
+    "/home/ubuntu/.local/bin/pi-bolt": "1ffe2fa379608bc1c91337f0ca51fe007c0a6915860e0503260856bbf06d3737",
+    "/tmp/side-query-native-pi/pi": "a2f3254c617ade54e6caab78a44e58252e3ceaef3dd46dceba6708c23df53af3"
+  },
+  "flags": [
+    "--offline",
+    "--no-session",
+    "--no-mcp",
+    "--no-skills",
+    "--no-prompt-templates",
+    "--no-themes",
+    "--no-context-files",
+    "--no-tools",
+    "--list-models",
+    "offline-model"
+  ],
+  "runsPerCase": 24,
+  "excludedWarmupsPerCase": 2,
+  "coldLoaderDefinition": "jiti filesystem cache directory removed before each process; OS page cache is not flushed",
+  "providerRequestCount": 0,
+  "results": [
+    {
+      "scenario": "warm",
+      "mode": "stock-baseline",
+      "binary": "/home/ubuntu/.local/bin/pi-bolt",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages = []",
+      "count": 24,
+      "medianMs": 44.162950499999994,
+      "p95Ms": 46.855141,
+      "minMs": 42.461972,
+      "maxMs": 47.582828,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 45.360496
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 43.954032
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 47.582828
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 45.452483
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 44.031792
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 42.461972
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 46.855141
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 44.501527
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 43.372716
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 43.383711
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 46.580319
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 45.613001
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 45.723589
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 45.156788
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 43.896235
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 43.466706
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 44.159406
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 44.166495
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 42.940667
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 44.636879
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 46.596638
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 43.101192
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 43.212133
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 43.569934
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 44.071595
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 44.944841
+        }
+      ],
+      "jitiCacheFiles": []
+    },
+    {
+      "scenario": "warm",
+      "mode": "stock-extension",
+      "binary": "/home/ubuntu/.local/bin/pi-bolt",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages -> package.json pi.extensions",
+      "count": 24,
+      "medianMs": 77.87554650000001,
+      "p95Ms": 90.179348,
+      "minMs": 75.181278,
+      "maxMs": 96.82318,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 106.413914
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 77.502497
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 84.633607
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 79.51175
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 77.4308
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 76.436069
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 78.865326
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 76.715971
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 76.529059
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 78.616728
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 80.07833
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 82.515086
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 77.098346
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 78.335218
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 78.320293
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 75.714142
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 76.096165
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 76.600796
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 75.340342
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 96.82318
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 79.730654
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 75.181278
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 80.262872
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 90.179348
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 77.229316
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 77.388167
+        }
+      ],
+      "jitiCacheFiles": [
+        "jiti/package-index.668bbb0d.mjs"
+      ]
+    },
+    {
+      "scenario": "warm",
+      "mode": "native-baseline",
+      "binary": "/tmp/side-query-native-pi/pi",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages = []",
+      "count": 24,
+      "medianMs": 45.290063,
+      "p95Ms": 49.979797,
+      "minMs": 44.157248,
+      "maxMs": 53.88129,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 46.341664
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 46.497939
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 44.157248
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 47.270894
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 45.513406
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 45.262412
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 44.514524
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 45.392455
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 44.752201
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 44.963746
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 49.379231
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 45.802695
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 45.090416
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 45.317714
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 44.679234
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 47.722347
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 45.145793
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 44.840095
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 45.199659
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 44.760973
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 46.419014
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 44.880242
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 49.979797
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 53.88129
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 47.273454
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 46.908154
+        }
+      ],
+      "jitiCacheFiles": []
+    },
+    {
+      "scenario": "warm",
+      "mode": "native-extension",
+      "binary": "/tmp/side-query-native-pi/pi",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages -> package.json pi.extensions",
+      "count": 24,
+      "medianMs": 53.3576685,
+      "p95Ms": 55.773046,
+      "minMs": 50.784473,
+      "maxMs": 57.399055,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 53.134755
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 53.955661
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 55.156087
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 54.984198
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 50.784473
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 51.723492
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 52.700779
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 52.94342
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 51.255406
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 54.281872
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 53.196335
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 52.520726
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 52.299459
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 53.879978
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 53.690997
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 54.146094
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 52.318929
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 52.816397
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 52.242564
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 53.519002
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 54.556982
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 52.735765
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 55.773046
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 57.399055
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 55.088206
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 54.528731
+        }
+      ],
+      "jitiCacheFiles": []
+    },
+    {
+      "scenario": "cold-loader",
+      "mode": "stock-baseline",
+      "binary": "/home/ubuntu/.local/bin/pi-bolt",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages = []",
+      "count": 24,
+      "medianMs": 43.550283500000006,
+      "p95Ms": 47.202332,
+      "minMs": 42.063869,
+      "maxMs": 47.261991,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 44.447037
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 44.488095
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 45.856577
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 47.261991
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 47.202332
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 44.906392
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 43.55606
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 42.631318
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 42.063869
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 43.663202
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 43.937195
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 43.272474
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 43.611099
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 42.586198
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 43.185015
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 42.620233
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 42.778034
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 43.544507
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 43.436084
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 43.27528
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 42.507872
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 44.404132
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 43.741396
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 43.664055
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 43.588568
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 43.313541
+        }
+      ],
+      "jitiCacheFiles": []
+    },
+    {
+      "scenario": "cold-loader",
+      "mode": "stock-extension",
+      "binary": "/home/ubuntu/.local/bin/pi-bolt",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages -> package.json pi.extensions",
+      "count": 24,
+      "medianMs": 106.6934,
+      "p95Ms": 118.296246,
+      "minMs": 102.022279,
+      "maxMs": 120.261577,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 108.190494
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 109.600773
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 109.583468
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 120.261577
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 107.702839
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 103.946732
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 103.600944
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 102.022279
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 103.847599
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 104.727761
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 106.766463
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 104.370042
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 106.620337
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 102.761799
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 104.959506
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 106.379854
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 111.669743
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 106.436379
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 108.462353
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 110.146479
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 106.440629
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 106.774298
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 108.086313
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 118.296246
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 109.077401
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 108.309747
+        }
+      ],
+      "jitiCacheFiles": [
+        "jiti/package-index.668bbb0d.mjs"
+      ]
+    },
+    {
+      "scenario": "cold-loader",
+      "mode": "native-baseline",
+      "binary": "/tmp/side-query-native-pi/pi",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages = []",
+      "count": 24,
+      "medianMs": 45.9835925,
+      "p95Ms": 49.039425,
+      "minMs": 43.62815,
+      "maxMs": 52.78493,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 47.212875
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 44.599611
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 47.365359
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 44.737629
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 45.842711
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 46.430172
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 46.85432
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 44.076961
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 45.050695
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 44.368695
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 46.048593
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 44.827639
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 44.418295
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 43.62815
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 46.462353
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 45.848841
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 45.122736
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 46.333566
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 46.866865
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 46.224068
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 46.414714
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 49.039425
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 47.47018
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 52.78493
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 45.430141
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 45.918592
+        }
+      ],
+      "jitiCacheFiles": []
+    },
+    {
+      "scenario": "cold-loader",
+      "mode": "native-extension",
+      "binary": "/tmp/side-query-native-pi/pi",
+      "version": "1.4.0 (Pi-Bolt 1.0.7, linux-arm64, JIT off)",
+      "discovery": "temporary settings.packages -> package.json pi.extensions",
+      "count": 24,
+      "medianMs": 53.109853,
+      "p95Ms": 56.169525,
+      "minMs": 50.550365,
+      "maxMs": 56.915576,
+      "raw": [
+        {
+          "round": 0,
+          "warmup": true,
+          "ms": 55.340349
+        },
+        {
+          "round": 1,
+          "warmup": true,
+          "ms": 54.403751
+        },
+        {
+          "round": 2,
+          "warmup": false,
+          "ms": 56.169525
+        },
+        {
+          "round": 3,
+          "warmup": false,
+          "ms": 56.915576
+        },
+        {
+          "round": 4,
+          "warmup": false,
+          "ms": 53.644351
+        },
+        {
+          "round": 5,
+          "warmup": false,
+          "ms": 53.101615
+        },
+        {
+          "round": 6,
+          "warmup": false,
+          "ms": 52.787638
+        },
+        {
+          "round": 7,
+          "warmup": false,
+          "ms": 50.550365
+        },
+        {
+          "round": 8,
+          "warmup": false,
+          "ms": 51.668468
+        },
+        {
+          "round": 9,
+          "warmup": false,
+          "ms": 52.772984
+        },
+        {
+          "round": 10,
+          "warmup": false,
+          "ms": 53.118091
+        },
+        {
+          "round": 11,
+          "warmup": false,
+          "ms": 54.094713
+        },
+        {
+          "round": 12,
+          "warmup": false,
+          "ms": 51.938441
+        },
+        {
+          "round": 13,
+          "warmup": false,
+          "ms": 52.81785
+        },
+        {
+          "round": 14,
+          "warmup": false,
+          "ms": 52.448323
+        },
+        {
+          "round": 15,
+          "warmup": false,
+          "ms": 51.440645
+        },
+        {
+          "round": 16,
+          "warmup": false,
+          "ms": 52.427335
+        },
+        {
+          "round": 17,
+          "warmup": false,
+          "ms": 55.609731
+        },
+        {
+          "round": 18,
+          "warmup": false,
+          "ms": 54.685236
+        },
+        {
+          "round": 19,
+          "warmup": false,
+          "ms": 52.557033
+        },
+        {
+          "round": 20,
+          "warmup": false,
+          "ms": 54.052441
+        },
+        {
+          "round": 21,
+          "warmup": false,
+          "ms": 53.246247
+        },
+        {
+          "round": 22,
+          "warmup": false,
+          "ms": 53.528043
+        },
+        {
+          "round": 23,
+          "warmup": false,
+          "ms": 53.124286
+        },
+        {
+          "round": 24,
+          "warmup": false,
+          "ms": 53.179473
+        },
+        {
+          "round": 25,
+          "warmup": false,
+          "ms": 52.300304
+        }
+      ],
+      "jitiCacheFiles": []
+    }
+  ]
+}
