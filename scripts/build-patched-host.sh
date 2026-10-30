@@ -242,8 +242,9 @@ Experimental Pi-Bolt 1.0.7 / Pi 1.4.0 native .mjs host, revision 2, built for
 Linux ARM64 with baseline CPU settings and JIT off. This revision preserves the
 original release entry and has no generated wrapper or compiled-in sentinel.
 
-A user reported roughly 16 MB more peak RSS in the first release, with roughly
-unchanged startup time. Revision 2 changes the build route, but that result has
+A user reported roughly 16 MB more peak RSS for a custom patched build, with
+roughly unchanged startup time. Device identity and binary hashes were not
+supplied. Revision 2 changes the first release's build route, but that result has
 not been verified as resolved on the reported device. Matching compiled heap
 dimensions does not prove process resident-memory parity.
 

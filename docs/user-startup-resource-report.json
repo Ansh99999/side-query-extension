@@ -1,5 +1,5 @@
 {
-  "source": "User-provided report; raw samples and device identity were not supplied",
+  "source": "User-provided report; raw samples, device identity and binary hashes were not supplied",
   "reportedAt": "2026-10-30",
   "runsPerCase": 3,
   "conditions": {
@@ -10,7 +10,7 @@
   },
   "cases": [
     { "name": "stock", "medianFirstTerminalOutputSeconds": 0.120, "approximateMedianPeakRssMbAsReported": 66 },
-    { "name": "released custom patched build", "medianFirstTerminalOutputSeconds": 0.126, "approximateMedianPeakRssMbAsReported": 82 }
+    { "name": "custom patched build as reported", "medianFirstTerminalOutputSeconds": 0.126, "approximateMedianPeakRssMbAsReported": 82 }
   ],
   "interpretation": {
     "meaningfulStartupImprovementEstablished": false,

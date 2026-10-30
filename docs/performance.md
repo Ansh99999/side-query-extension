@@ -24,14 +24,15 @@ the same installed extensions and settings, offline, through a pseudo-terminal.
 | Host | Median first terminal output | Approximate median peak RSS |
 | --- | ---: | ---: |
 | Stock | 120 ms | 66 MB |
-| Released custom patched build | 126 ms | 82 MB |
+| Custom patched build (as reported) | 126 ms | 82 MB |
 
 This report shows no meaningful startup improvement and about 16 MB (24%) more
 peak resident memory for the patched build in that workload. First output is a
 startup proxy, not a precise fully-ready measurement; three runs and an
 unspecified device do not support general performance claims. The report excludes
 model response/network time. [The supplied report](user-startup-resource-report.json)
-records these limitations; its raw samples were not supplied.
+records these limitations; its raw samples, device identity and binary hashes
+were not supplied.
 
 The released host was rebuilt through `pi-bolt compile` with a generated entry
 wrapper and an inactive sentinel extension. It is not a build that differs from

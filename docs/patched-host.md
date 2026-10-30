@@ -17,8 +17,9 @@ the same startup time and about 16 MB more peak RSS. See the
 [interactive startup and memory report](performance.md#interactive-startup-and-memory)
 before choosing it as a performance optimization.
 
-That report describes the first release. Revision 2 changes its build route;
-its terminal resource results are published separately for comparison.
+That report predates revision 2; its binaries were not identified by hash.
+Revision 2 changes the first release's build route; its terminal resource results
+are published separately for comparison.
 
 The prerelease is created after GitHub Actions passes the extension's type check,
 tests and build, real stock and patched host loader checks, and both terminal
