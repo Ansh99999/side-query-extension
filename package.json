@@ -1,13 +1,30 @@
 {
   "name": "side-query-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lightweight, on-demand side conversations for Pi-Bolt.",
   "author": "Ansh Raj (Ansh99999)",
   "type": "module",
   "license": "MIT",
-  "keywords": ["pi-package", "pi-bolt", "pi-extension", "btw"],
-  "files": ["index.mjs", "dist/", "README.md", "LICENSE", "docs/", "patches/", "scripts/"],
-  "pi": { "extensions": ["./index.mjs"] },
+  "keywords": [
+    "pi-package",
+    "pi-bolt",
+    "pi-extension",
+    "btw"
+  ],
+  "files": [
+    "index.mjs",
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "docs/",
+    "patches/",
+    "scripts/"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.mjs"
+    ]
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit",
@@ -31,12 +48,27 @@
     "@earendil-works/pi-tui": ">=1.4.0"
   },
   "peerDependenciesMeta": {
-    "typebox": { "optional": true },
-    "@earendil-works/pi-agent-core": { "optional": true },
-    "@earendil-works/pi-ai": { "optional": true },
-    "@earendil-works/pi-coding-agent": { "optional": true },
-    "@earendil-works/pi-tui": { "optional": true }
+    "typebox": {
+      "optional": true
+    },
+    "@earendil-works/pi-agent-core": {
+      "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    }
   },
-  "repository": { "type": "git", "url": "git+https://github.com/Ansh99999/side-query-extension.git" },
-  "engines": { "node": ">=22.19.0" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ansh99999/side-query-extension.git"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
 }

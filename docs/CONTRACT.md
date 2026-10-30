@@ -11,7 +11,7 @@ chat shows the searchable list; Esc in the list returns to the main conversation
 Ctrl+N creates a thread. Ctrl+D requests deletion with confirmation. Alt+T toggles
 tools for the selected thread. All three controls are local to this screen.
 
-Use Pi's current theme and native Input/Editor/Markdown components. Cover the
+Use Pi's current theme and the same native UserMessageComponent, AssistantMessageComponent, ToolExecutionComponent, and CustomEditor as the main conversation. Chat has no header/title or tool badge; footer is only ^N new, ^D delete, Alt+T tools, ^/ main. Alt+Tab reveals Tool on/off on demand. Use native AgentSession.prompt for explicit input, Enter steering and Alt+Enter follow-up, shared runtime/model settings, retry and automatic compaction; preserve native entries on restart. Cover the
 terminal with one full-height custom overlay. The list shows the main conversation
 title, an ASCII boxed search input, AI-generated thread titles, and gray relative
 activity times. Keep help subtle and contextual. Handle narrow terminals and resize.

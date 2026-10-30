@@ -162,9 +162,9 @@ def run(binary, package):
             tty.settle(.4)
             assert len(Provider.requests) == 0, "Startup made provider requests"
             tty.step("main prompt", b"MAIN-CONTEXT\r", "Main context marker saved.")
-            tty.step("/btw opens an empty tools-off side screen", b"/btw\r", "Tools off")
+            tty.step("/btw opens the native side editor", b"/btw\r", "^N new")
+            tty.step("Alt+Tab reveals tools off on demand", b"\x1b\t", "Tool off")
             tty.step("explicit side query streams a reply", b"Why is startup slow?\r", "Side answer: Why is startup slow?")
-            tty.wait("Startup investigation")
             tty.settle(.3)
             side_requests = [r for r in Provider.requests if any("private side conversation" in str(m.get("content","")) for m in r["messages"])]
             assert len(side_requests) == 1
@@ -172,25 +172,31 @@ def run(binary, package):
             assert "MAIN-CONTEXT" in str(side_requests[0]["messages"]), "Side lacks parent context"
             count = len(Provider.requests)
             tty.step("Escape once opens the boxed search list", b"\x1b", "Search titles")
+            tty.wait("Startup investigation")
             tty.step("Escape again returns to the main conversation", b"\x1b", "offline-model")
-            tty.step("legacy Ctrl+/ resumes current side thread", b"\x1f", "Startup investigation")
+            tty.step("legacy ^/ resumes current side thread", b"\x1f", "Side answer: Why is startup slow?")
             assert len(Provider.requests) == count, "Passive reopen started an AI request"
-            tty.step("Alt+T enables tools for this thread", b"\x1bt", "Tools on")
+            tty.send(b"\x1bt")
+            tty.settle()
+            tty.step("Alt+Tab reveals enabled tools", b"\x1b\t", "Tool on")
             tty.send(b"unsent draft")
             tty.settle()
-            tty.step("Ctrl+N creates another tools-off thread", b"\x0e", "New side conversation")
+            tty.send(b"\x0e")
+            tty.settle()
+            tty.step("^N creates another tools-off thread", b"\x1b\t", "Tool off")
             assert len(Provider.requests) == count, "New blank thread started an AI request"
             tty.step("Ctrl+D requires deletion confirmation", b"\x04", "Delete side conversation?")
             tty.send(b"\r")
             tty.settle()
-            assert "Tools off" in tty.text(), "Default Cancel deleted a thread"
+            tty.step("default Cancel keeps the tools-off thread", b"\x1b\t", "Tool off")
             tty.step("deletion can be opened again", b"\x04", "Delete side conversation?")
             tty.step("confirmed deletion returns to list", b"\t\r", "Search titles")
             tty.send(b"Startup")
             tty.settle()
-            tty.step("search and Enter reopen the retained thread", b"\r", "Tools on")
+            tty.step("search and Enter reopen the retained thread", b"\r", "unsent draft")
+            tty.step("retained tool choice is available on demand", b"\x1b\t", "Tool on")
             tty.wait("unsent draft")
-            tty.step("return to list after draft restoration", b"\x1b", "Tab search/list")
+            tty.step("return to list after draft restoration", b"\x1b", "Startup investigation")
             tty.step("return to main after draft restoration", b"\x1b", "offline-model")
             tty.finish()
             saved = list((agent/"side-query").glob("*/*.json"))
@@ -214,9 +220,10 @@ def run(binary, package):
             tty.step("modern Ctrl+/ resumes a thread across process restart", b"\x1b[47;5u", "unsent draft")
             assert len(Provider.requests) == count, "Resume started a provider request"
             tty.step("/btw question from side chat creates another thread", b"\x15/btw Inline side question\r", "Side answer: Inline side question")
-            tty.wait("Startup investigation")
             tty.settle(.3)
-            tty.step("enable main-action requests", b"\x1bt", "Tools on")
+            tty.send(b"\x1bt")
+            tty.settle()
+            tty.step("enable main-action requests", b"\x1b\t", "Tool on")
             marker = cwd/"approved-marker.txt"
             tty.step("main change requires an exact confirmation", b"WRITE-DECLINE\r", "Allow main action?")
             tty.step("default Cancel declines a main action", b"\r", "Main action request handled.")

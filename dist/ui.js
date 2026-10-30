@@ -1,4 +1,18 @@
-import { CURSOR_MARKER, compositeTuiLine, Editor, Input, Markdown, matchesKey, isKeyRelease, stripTerminalSequences, truncateToWidth, visibleWidth, wrapTextWithAnsi, } from "@earendil-works/pi-tui";
+import { AssistantMessageComponent, BranchSummaryMessageComponent, CompactionSummaryMessageComponent, CustomEditor, CustomMessageComponent, getMarkdownTheme, getSelectListTheme, parseSkillBlock, SkillInvocationMessageComponent, ToolExecutionComponent, UserMessageComponent, } from "@earendil-works/pi-coding-agent";
+import { CURSOR_MARKER, compositeTuiLine, Container, getKeybindings, Input, Loader, Markdown, Spacer, matchesKey, isKeyRelease, stripTerminalSequences, truncateToWidth, visibleWidth, wrapTextWithAnsi, } from "@earendil-works/pi-tui";
+class EditorWorkingStatus extends Loader {
+    kind = "working";
+    renderInBorder(width) {
+        const line = super.render(width + 2)[1] ?? "";
+        return truncateToWidth(line.startsWith(" ") ? line.slice(1).trimEnd() : line.trimEnd(), width, "");
+    }
+    renderSpinnerInBorder(width) {
+        return truncateToWidth(this.getRenderedIndicator(), width, "");
+    }
+    dispose() {
+        this.stop();
+    }
+}
 function plain(text, multiline = false) {
     const cleaned = stripTerminalSequences(text).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
     return multiline ? cleaned : cleaned.replace(/[\n\t]/g, " ");
@@ -6,6 +20,24 @@ function plain(text, multiline = false) {
 function fit(text, width) {
     const clipped = truncateToWidth(text, width, "");
     return clipped + " ".repeat(Math.max(0, width - visibleWidth(clipped)));
+}
+function safeStrings(value) {
+    if (typeof value === "string")
+        return plain(value, true);
+    if (Array.isArray(value))
+        return value.map(safeStrings);
+    if (value && typeof value === "object")
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, safeStrings(item)]));
+    return value;
+}
+function safeAssistant(message) {
+    return {
+        ...message,
+        content: message.content.map((content) => content.type === "text"
+            ? { ...content, text: plain(content.text, true) }
+            : content.type === "thinking" ? { ...content, thinking: plain(content.thinking, true) } : content),
+        ...(message.errorMessage ? { errorMessage: plain(message.errorMessage, true) } : {}),
+    };
 }
 export function relativeTime(updatedAt, now = Date.now()) {
     const seconds = Math.max(0, Math.floor((now - updatedAt) / 1000));
@@ -28,7 +60,8 @@ export function relativeTime(updatedAt, now = Date.now()) {
 }
 export class SideQueryScreen {
     tui;
-    theme;
+    themeSource;
+    keybindings;
     state;
     actions;
     focus = false;
@@ -36,6 +69,14 @@ export class SideQueryScreen {
     editors = new Map();
     markdownTheme;
     messageCache = [];
+    toolCache = new Map();
+    bodyRows = [];
+    bodyStart = 0;
+    workingStatus;
+    workingMessage;
+    toolAvailabilityVisible = false;
+    toolExpansionOverride;
+    hideThinkingOverride;
     listFocus = "search";
     selectedId;
     activeEditorId;
@@ -56,9 +97,10 @@ export class SideQueryScreen {
     listItemHeight = 1;
     editorRow = 0;
     editorNativeRows = [];
-    constructor(tui, theme, state, actions) {
+    constructor(tui, theme, state, actions, keybindings = getKeybindings()) {
         this.tui = tui;
-        this.theme = theme;
+        this.themeSource = typeof theme === "function" ? theme : () => theme;
+        this.keybindings = keybindings;
         this.state = state;
         this.actions = actions;
         this.search = new Input({
@@ -66,22 +108,7 @@ export class SideQueryScreen {
             placeholder: "Search titles",
             placeholderStyle: (text) => this.color("muted", text),
         });
-        this.markdownTheme = {
-            heading: (text) => this.color("mdHeading", text),
-            link: (text) => this.color("mdLink", text),
-            linkUrl: (text) => this.color("mdLinkUrl", text),
-            code: (text) => this.color("mdCode", text),
-            codeBlock: (text) => this.color("mdCodeBlock", text),
-            codeBlockBorder: (text) => this.color("mdCodeBlockBorder", text),
-            quote: (text) => this.color("mdQuote", text),
-            quoteBorder: (text) => this.color("mdQuoteBorder", text),
-            hr: (text) => this.color("mdHr", text),
-            listBullet: (text) => this.color("mdListBullet", text),
-            bold: (text) => this.theme.bold(text),
-            italic: (text) => this.theme.italic(text),
-            underline: (text) => this.theme.underline(text),
-            strikethrough: (text) => this.theme.strikethrough(text),
-        };
+        this.markdownTheme = getMarkdownTheme();
         this.refresh();
     }
     get focused() {
@@ -93,6 +120,25 @@ export class SideQueryScreen {
     }
     color(token, text) {
         return this.theme.fg(token, text);
+    }
+    get theme() {
+        return this.themeSource();
+    }
+    get outputPad() {
+        return this.state().ui?.outputPaddingX ?? 1;
+    }
+    get toolsExpanded() {
+        return this.toolExpansionOverride ?? this.state().ui?.toolOutputExpanded ?? false;
+    }
+    get hideThinking() {
+        return this.hideThinkingOverride ?? this.state().ui?.hideThinkingBlock ?? false;
+    }
+    nativeMarkdownTheme() {
+        const markdownTheme = this.state().ui?.markdownTheme ?? this.markdownTheme;
+        const indent = this.state().ui?.codeBlockIndent;
+        if (indent !== undefined)
+            markdownTheme.codeBlockIndent = indent;
+        return markdownTheme;
     }
     filteredThreads() {
         const query = this.search.getValue().toLocaleLowerCase().trim();
@@ -108,16 +154,14 @@ export class SideQueryScreen {
     draftEditor(id, draft) {
         let entry = this.editors.get(id);
         if (!entry) {
-            const editor = new Editor(this.tui, {
+            const editor = new CustomEditor(this.tui, {
                 borderColor: (text) => this.color("borderMuted", text),
-                selectList: {
-                    selectedPrefix: (text) => this.color("accent", text),
-                    selectedText: (text) => this.color("accent", text),
-                    description: (text) => this.color("muted", text),
-                    scrollInfo: (text) => this.color("muted", text),
-                    noMatch: (text) => this.color("muted", text),
-                },
-            }, { paddingX: 1 });
+                selectList: getSelectListTheme(),
+            }, this.keybindings, {
+                paddingX: this.state().ui?.editorPaddingX,
+                autocompleteMaxVisible: this.state().ui?.autocompleteMaxVisible,
+                embedWorkingStatus: true,
+            });
             entry = { editor, draft };
             this.editors.set(id, entry);
             editor.setText(draft);
@@ -130,21 +174,52 @@ export class SideQueryScreen {
             editor.onSubmit = (text) => {
                 if (!text.trim() || this.disposed)
                     return;
-                if (this.state().busy) {
-                    editor.setText(text);
-                    return;
-                }
                 editor.addToHistory(text);
                 this.scrollFromBottom = 0;
                 this.run(() => this.actions.submit(text));
             };
+            editor.onAction("app.message.followUp", () => this.submitFollowUp(editor));
+            editor.onAction("app.tools.expand", () => {
+                this.toolExpansionOverride = !this.toolsExpanded;
+                for (const tool of this.toolCache.values())
+                    tool.component.setExpanded(this.toolsExpanded);
+                this.refresh();
+            });
+            editor.onAction("app.thinking.toggle", () => {
+                this.hideThinkingOverride = !this.hideThinking;
+                for (const message of this.messageCache) {
+                    if (message.component instanceof AssistantMessageComponent)
+                        message.component.setHideThinkingBlock(this.hideThinking);
+                }
+                this.refresh();
+            });
         }
         else if (entry.draft !== draft) {
             entry.draft = draft;
             entry.editor.setText(draft);
         }
-        entry.editor.disableSubmit = this.state().busy;
+        const settings = this.state().ui;
+        if (settings?.editorPaddingX !== undefined)
+            entry.editor.setPaddingX(settings.editorPaddingX);
+        if (settings?.autocompleteMaxVisible !== undefined)
+            entry.editor.setAutocompleteMaxVisible(settings.autocompleteMaxVisible);
+        entry.editor.borderColor = (text) => this.theme.getThinkingBorderColor(settings?.thinkingLevel ?? "off")(text);
+        entry.editor.disableSubmit = false;
         return entry;
+    }
+    submitFollowUp(editor) {
+        const text = editor.getExpandedText().trim();
+        if (!text || this.disposed)
+            return;
+        if (!this.state().busy) {
+            editor.onSubmit?.(text);
+            editor.setText("");
+            return;
+        }
+        editor.addToHistory(text);
+        editor.setText("");
+        this.scrollFromBottom = 0;
+        this.run(() => this.actions.submit(text, "followUp"));
     }
     syncState() {
         if (this.disposed)
@@ -153,6 +228,7 @@ export class SideQueryScreen {
         if (current.screen !== this.lastScreen) {
             if (current.screen === "list")
                 this.listFocus = "search";
+            this.toolAvailabilityVisible = false;
             this.lastScreen = current.screen;
         }
         if (current.screen === "chat" && current.currentId) {
@@ -160,6 +236,9 @@ export class SideQueryScreen {
                 this.scrollFromBottom = 0;
                 this.previousBodyLength = 0;
                 this.previousBodyWidth = 0;
+                this.messageCache.length = 0;
+                this.toolCache.clear();
+                this.toolAvailabilityVisible = false;
             }
             this.activeEditorId = current.currentId;
             this.draftEditor(current.currentId, current.draft);
@@ -169,7 +248,28 @@ export class SideQueryScreen {
                 this.editors.delete(id);
         }
         this.normalizeSelection();
+        this.syncWorkingStatus();
         this.updateFocus();
+    }
+    syncWorkingStatus() {
+        const state = this.state();
+        if (state.screen === "chat" && state.busy && state.currentId) {
+            const message = plain(state.activity ?? "Working");
+            if (!this.workingStatus) {
+                const color = (text) => this.theme.getThinkingBorderColor(this.state().ui?.thinkingLevel ?? "off")(text);
+                this.workingStatus = new EditorWorkingStatus(this.tui, color, color, message);
+            }
+            else if (this.workingMessage !== message)
+                this.workingStatus.setMessage(message);
+            this.workingMessage = message;
+        }
+        else {
+            this.workingStatus?.dispose();
+            this.workingStatus = undefined;
+            this.workingMessage = undefined;
+        }
+        for (const [id, entry] of this.editors)
+            entry.editor.setWorkingStatusIndicator(id === state.currentId ? this.workingStatus : undefined);
     }
     refresh() {
         this.syncState();
@@ -188,7 +288,10 @@ export class SideQueryScreen {
         for (const entry of this.editors.values())
             entry.editor.invalidate();
         for (const message of this.messageCache)
-            message.markdown.invalidate();
+            message.component.invalidate();
+        for (const tool of this.toolCache.values())
+            tool.component.invalidate();
+        this.workingStatus?.invalidate();
     }
     saveDraft() {
         const current = this.state();
@@ -223,6 +326,7 @@ export class SideQueryScreen {
             return;
         this.syncState();
         if (this.pasteInProgress || data.includes("\x1b[200~")) {
+            this.toolAvailabilityVisible = false;
             this.pasteInProgress = !data.includes("\x1b[201~");
             if (!this.pending) {
                 if (this.state().screen === "chat" && this.state().currentId) {
@@ -252,6 +356,13 @@ export class SideQueryScreen {
             this.handleConfirmation(data);
             return;
         }
+        if (data === "\x1b\t" || matchesKey(data, "alt+tab")) {
+            this.toolAvailabilityVisible = !this.toolAvailabilityVisible;
+            this.tui.requestRender();
+            return;
+        }
+        if (!matchesKey(data, "alt+t"))
+            this.toolAvailabilityVisible = false;
         if (matchesKey(data, "escape")) {
             this.saveDraft();
             if (this.state().screen === "chat")
@@ -283,6 +394,9 @@ export class SideQueryScreen {
             this.handleList(data);
         else if (matchesKey(data, "pageUp") || matchesKey(data, "pageDown")) {
             this.scrollReply(matchesKey(data, "pageUp") ? -this.bodyHeight : this.bodyHeight);
+        }
+        else if (matchesKey(data, "alt+enter") && this.state().currentId) {
+            this.submitFollowUp(this.editors.get(this.state().currentId).editor);
         }
         else if (this.state().currentId) {
             this.editors.get(this.state().currentId)?.editor.handleInput(data);
@@ -378,10 +492,14 @@ export class SideQueryScreen {
         this.saveDraft();
         this.resolveConfirmation(false);
         this.disposed = true;
+        this.workingStatus?.dispose();
+        this.workingStatus = undefined;
         this.focus = false;
         this.updateFocus();
         this.editors.clear();
         this.messageCache.length = 0;
+        this.toolCache.clear();
+        this.bodyRows = [];
     }
     render(width) {
         const columns = Math.max(1, Math.floor(width));
@@ -397,13 +515,15 @@ export class SideQueryScreen {
             this.renderConfirmation(output, columns, rows);
         return output;
     }
-    help(width, chat) {
-        const hints = width < 40
-            ? (chat ? ["Enter send  Esc list", "PgUp/PgDn reply"] : ["Enter open  Esc main", "Tab focus  Ctrl+N new"])
-            : (chat
-                ? ["Enter send · Shift+Enter newline · PgUp/PgDn reply · Esc threads", "Ctrl+N new · Ctrl+D delete · Alt+T tools · Ctrl+/ main"]
-                : ["Enter open · Tab search/list · ↑↓ choose · Esc main", "Ctrl+N new · Ctrl+D delete · Alt+T tools"]);
-        return hints.map((hint) => this.color("muted", truncateToWidth(hint, width, "")));
+    help(width) {
+        return wrapTextWithAnsi(this.color("muted", "^N new · ^D delete · Alt+T tools · ^/ main"), width);
+    }
+    toolAvailability(width) {
+        if (!this.toolAvailabilityVisible)
+            return [];
+        const id = this.state().screen === "chat" ? this.state().currentId : this.selectedId;
+        const enabled = this.state().threads.find((thread) => thread.id === id)?.toolsEnabled ?? false;
+        return [this.color(enabled ? "accent" : "dim", truncateToWidth(`Tool ${enabled ? "on" : "off"}`, width, ""))];
     }
     parentHeader(width) {
         return this.theme.bold(this.color("accent", truncateToWidth(plain(this.state().parentTitle) || "Main conversation", width)));
@@ -417,7 +537,7 @@ export class SideQueryScreen {
         header.push(this.color("borderMuted", "| ") + fit(this.search.render(innerWidth)[0] ?? "", innerWidth) + this.color("borderMuted", " |"));
         header.push(border);
         const error = this.state().error ?? this.localError;
-        const footer = [...(error ? [this.color("error", truncateToWidth(plain(error), width))] : []), ...this.help(width, false)];
+        const footer = [...(error ? [this.color("error", truncateToWidth(plain(error), width))] : []), ...this.toolAvailability(width), ...this.help(width)];
         const available = Math.max(0, rows - header.length - footer.length);
         this.listRow = header.length;
         this.listItemHeight = width < 40 ? 2 : 1;
@@ -451,56 +571,208 @@ export class SideQueryScreen {
         return [...header, ...content.slice(0, available), ...footer];
     }
     renderMessages(width) {
-        const messages = this.state().messages;
+        const state = this.state();
+        const messages = state.nativeMessages;
         const result = [];
-        if (!messages.length)
-            return [this.color("muted", "Ask a side question.")];
-        messages.forEach((message, index) => {
-            const text = plain(message.text, true);
-            let cached = this.messageCache[index];
-            if (!cached || cached.role !== message.role) {
-                cached = {
-                    text,
-                    role: message.role,
-                    markdown: new Markdown(text, 0, 0, this.markdownTheme, {
-                        color: (value) => this.color(message.role === "notice" || message.role === "tool" ? "muted" : "text", value),
-                    }),
-                };
-                this.messageCache[index] = cached;
-            }
-            else if (cached.text !== text) {
-                cached.text = text;
-                cached.markdown.setText(text);
-            }
-            const label = message.role === "user" ? "You" : message.role === "assistant" ? "Reply" : message.role === "tool" ? "Tool" : "";
-            if (result.length)
+        this.bodyRows = [];
+        let viewIndex = 0;
+        let componentCount = 0;
+        const append = (component) => {
+            const lines = component.render(width);
+            this.bodyRows.push({ component, y: result.length, height: lines.length });
+            result.push(...lines);
+            componentCount++;
+        };
+        const markdownTheme = this.nativeMarkdownTheme();
+        const baseSettings = JSON.stringify([this.outputPad, markdownTheme.codeBlockIndent]);
+        const user = (text, key) => {
+            if (!text)
+                return;
+            if (componentCount)
                 result.push("");
-            if (label)
-                result.push(this.color(message.role === "user" ? "accent" : "muted", label));
-            result.push(...cached.markdown.render(width));
-        });
-        this.messageCache.length = messages.length;
+            const settings = `${baseSettings}:${this.toolsExpanded}`;
+            append(this.messageView(viewIndex++, "user", key, text, settings, () => {
+                const skill = parseSkillBlock(text);
+                if (!skill)
+                    return new UserMessageComponent(text, markdownTheme, this.outputPad);
+                const container = new Container();
+                const invocation = new SkillInvocationMessageComponent(skill, markdownTheme, this.outputPad);
+                invocation.setExpanded(this.toolsExpanded);
+                container.addChild(invocation);
+                if (skill.userMessage) {
+                    const textMessage = new UserMessageComponent(skill.userMessage, markdownTheme, this.outputPad);
+                    container.addChild(new Spacer(1));
+                    container.addChild(textMessage);
+                }
+                return container;
+            }));
+        };
+        const assistant = (message, key, streaming) => {
+            const source = JSON.stringify([
+                message.content.map((content) => content.type === "text" ? ["text", content.text]
+                    : content.type === "thinking" ? ["thinking", content.thinking] : ["toolCall"]),
+                message.stopReason, message.errorMessage, streaming,
+            ]);
+            const settings = JSON.stringify([baseSettings, this.hideThinking, state.ui?.hiddenThinkingLabel ?? "Thinking..."]);
+            append(this.messageView(viewIndex++, "assistant", key, source, settings, () => {
+                const component = new AssistantMessageComponent(undefined, this.hideThinking, markdownTheme, state.ui?.hiddenThinkingLabel ?? "Thinking...", this.outputPad);
+                component.updateContent(safeAssistant(message), streaming);
+                return component;
+            }, (component) => {
+                component.updateContent(safeAssistant(message), streaming);
+            }));
+        };
+        if (messages === undefined) {
+            for (const [index, message] of state.messages.entries()) {
+                const text = plain(message.text, true);
+                if (message.role === "user")
+                    user(text, String(index));
+                else if (message.role === "assistant")
+                    assistant({
+                        role: "assistant", content: [{ type: "text", text }], api: "openai-completions",
+                        provider: "side-query-display", model: "side-query-display", timestamp: index,
+                        stopReason: state.busy && index === state.messages.length - 1 ? "pending" : "stop",
+                        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+                            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+                    }, String(index), state.busy && index === state.messages.length - 1);
+                else {
+                    result.push("");
+                    append(this.messageView(viewIndex++, message.role, String(index), text, baseSettings, () => new Markdown(text, this.outputPad, 0, markdownTheme, { color: (value) => this.color("dim", value) })));
+                }
+            }
+            this.toolCache.clear();
+        }
+        else {
+            const toolResults = new Map(messages.filter((message) => message.role === "toolResult").map((message) => [message.toolCallId, message]));
+            const activeTools = new Map(state.activeTools?.map((tool) => [tool.toolCallId, tool]) ?? []);
+            const renderedTools = new Set();
+            for (const [index, message] of messages.entries()) {
+                const key = `${message.role}:${"timestamp" in message ? message.timestamp : index}:${index}`;
+                if (message.role === "user") {
+                    const text = typeof message.content === "string" ? message.content
+                        : message.content.filter((content) => content.type === "text").map((content) => content.text).join("");
+                    user(plain(text, true), key);
+                }
+                else if (message.role === "assistant") {
+                    const streaming = state.streamingAssistantTimestamp === message.timestamp;
+                    assistant(message, key, streaming);
+                    for (const call of message.content) {
+                        if (call.type !== "toolCall")
+                            continue;
+                        const active = activeTools.get(call.id);
+                        const final = toolResults.get(call.id);
+                        let toolResult = final ? {
+                            content: final.content, details: final.details, isError: final.isError,
+                            durationMs: final.durationMs,
+                        } : active?.result;
+                        if (!toolResult && (message.stopReason === "aborted" || message.stopReason === "error")) {
+                            toolResult = { content: [{ type: "text", text: message.stopReason === "aborted"
+                                            ? message.errorMessage ?? "Operation aborted" : message.errorMessage ?? "Error" }], isError: true };
+                        }
+                        append(this.toolView(call, active, toolResult, !final && (active?.isPartial ?? streaming), streaming).component);
+                        renderedTools.add(call.id);
+                    }
+                }
+                else if (message.role === "custom" && message.display) {
+                    result.push("");
+                    append(this.messageView(viewIndex++, message.role, key, JSON.stringify(message), `${baseSettings}:${this.toolsExpanded}`, () => {
+                        const component = new CustomMessageComponent({ ...message, content: typeof message.content === "string"
+                                ? plain(message.content, true) : message.content.map((content) => content.type === "text" ? { ...content, text: plain(content.text, true) } : content) }, undefined, markdownTheme, this.outputPad);
+                        component.setExpanded(this.toolsExpanded);
+                        return component;
+                    }));
+                }
+                else if (message.role === "compactionSummary" || message.role === "branchSummary") {
+                    result.push("");
+                    append(this.messageView(viewIndex++, message.role, key, JSON.stringify(message), `${baseSettings}:${this.toolsExpanded}`, () => {
+                        const component = message.role === "compactionSummary"
+                            ? new CompactionSummaryMessageComponent(message, markdownTheme, this.outputPad)
+                            : new BranchSummaryMessageComponent(message, markdownTheme, this.outputPad);
+                        component.setExpanded(this.toolsExpanded);
+                        return component;
+                    }));
+                }
+            }
+            for (const id of this.toolCache.keys())
+                if (!renderedTools.has(id))
+                    this.toolCache.delete(id);
+        }
+        this.messageCache.length = viewIndex;
         return result;
+    }
+    messageView(index, role, key, source, settings, create, update) {
+        let cached = this.messageCache[index];
+        if (!cached || cached.role !== role || cached.key !== key || cached.settings !== settings) {
+            cached = { role, key, source, settings, component: create() };
+            this.messageCache[index] = cached;
+        }
+        else if (cached.source !== source) {
+            if (update)
+                update(cached.component);
+            else
+                cached.component = create();
+            cached.source = source;
+        }
+        return cached.component;
+    }
+    toolView(call, active, result, partial, streaming) {
+        const ui = this.state().ui;
+        const args = JSON.stringify(active?.args ?? call.arguments) ?? "";
+        const settings = JSON.stringify([this.toolsExpanded, ui?.showImages ?? true, ui?.imageWidthCells ?? 60, this.outputPad, ui?.cwd]);
+        const definition = this.state().toolRenderers?.[call.name];
+        let cached = this.toolCache.get(call.id);
+        if (!cached || cached.name !== call.name || cached.definition !== definition) {
+            cached = {
+                name: call.name, args, settings, definition, started: false, argsComplete: false,
+                component: new ToolExecutionComponent(call.name, call.id, safeStrings(active?.args ?? call.arguments), {
+                    showImages: ui?.showImages, imageWidthCells: ui?.imageWidthCells, outputPad: this.outputPad,
+                }, definition, this.tui, ui?.cwd ?? "."),
+            };
+            cached.component.setExpanded(this.toolsExpanded);
+            this.toolCache.set(call.id, cached);
+        }
+        else {
+            if (cached.args !== args) {
+                cached.component.updateArgs(safeStrings(active?.args ?? call.arguments));
+                cached.args = args;
+            }
+            if (cached.settings !== settings) {
+                cached.component.setExpanded(this.toolsExpanded);
+                cached.component.setShowImages(ui?.showImages ?? true);
+                cached.component.setImageWidthCells(ui?.imageWidthCells ?? 60);
+                cached.component.setOutputPad(this.outputPad);
+                cached.settings = settings;
+            }
+        }
+        if (active && !cached.started) {
+            cached.component.markExecutionStarted();
+            cached.started = true;
+        }
+        if (!streaming && !cached.argsComplete && active) {
+            cached.component.setArgsComplete();
+            cached.argsComplete = true;
+        }
+        const resultKey = result ? JSON.stringify([result, partial]) : undefined;
+        if (result && cached.result !== resultKey) {
+            cached.component.updateResult({
+                ...result,
+                content: result.content.map((content) => content.type === "text" ? { ...content, text: plain(content.text ?? "", true) } : content),
+                details: safeStrings(result.details),
+            }, partial);
+            cached.result = resultKey;
+        }
+        return cached;
     }
     renderChat(width, rows) {
         const current = this.state();
-        const thread = current.threads.find((item) => item.id === current.currentId);
-        const tools = `Tools ${thread?.toolsEnabled ? "on" : "off"}`;
-        const title = plain(thread?.title ?? "New side thread");
-        const header = [this.parentHeader(width)];
-        if (width < 40)
-            header.push(this.theme.bold(truncateToWidth(title, width)), this.color("muted", tools));
-        else
-            header.push(this.theme.bold(fit(truncateToWidth(title, width - tools.length - 2), width - tools.length - 2)) + "  " + this.color(thread?.toolsEnabled ? "accent" : "muted", tools));
-        const footer = this.help(width, true);
+        const footer = this.help(width);
         const error = current.error ?? this.localError;
-        const status = error ? this.color("error", plain(error)) : current.busy ? this.color("muted", plain(current.activity ?? "Replying…") + "  Ctrl+C cancel") : "";
-        const statusLines = status ? [truncateToWidth(status, width)] : [];
+        const statusLines = [...(error ? [this.color("error", truncateToWidth(plain(error), width))] : []), ...this.toolAvailability(width)];
         const editor = current.currentId ? this.draftEditor(current.currentId, current.draft).editor : undefined;
         const nativeEditor = editor?.render(width) ?? [];
-        const editorBudget = Math.max(0, rows - header.length - footer.length - statusLines.length - 1);
+        const editorBudget = Math.max(0, rows - footer.length - statusLines.length - 1);
         const editorLines = this.cropEditor(nativeEditor, editorBudget);
-        this.bodyHeight = Math.max(0, rows - header.length - editorLines.length - footer.length - statusLines.length);
+        this.bodyHeight = Math.max(0, rows - editorLines.length - footer.length - statusLines.length);
         const body = this.renderMessages(width);
         if (this.scrollFromBottom > 0 && this.previousBodyWidth === width && body.length > this.previousBodyLength) {
             this.scrollFromBottom += body.length - this.previousBodyLength;
@@ -509,11 +781,12 @@ export class SideQueryScreen {
         this.previousBodyWidth = width;
         this.scrollFromBottom = Math.min(this.scrollFromBottom, Math.max(0, body.length - this.bodyHeight));
         const start = Math.max(0, body.length - this.bodyHeight - this.scrollFromBottom);
+        this.bodyStart = start;
         const visible = body.slice(start, start + this.bodyHeight);
         while (visible.length < this.bodyHeight)
             visible.push("");
-        this.editorRow = header.length + visible.length + statusLines.length;
-        return [...header, ...visible, ...statusLines, ...editorLines, ...footer];
+        this.editorRow = visible.length + statusLines.length;
+        return [...visible, ...statusLines, ...editorLines, ...footer];
     }
     cropEditor(native, budget) {
         this.editorNativeRows = [];
@@ -598,6 +871,16 @@ export class SideQueryScreen {
                 return undefined;
             this.updateFocus();
             return { handled: true, focus: true, render: true };
+        }
+        if (event.y >= 0 && event.y < this.bodyHeight) {
+            const bodyY = event.y + this.bodyStart;
+            const row = this.bodyRows.find((item) => bodyY >= item.y && bodyY < item.y + item.height);
+            const handled = row?.component.handleMouse?.({ ...event, y: bodyY - row.y, height: row.height });
+            if (handled?.handled) {
+                this.tui.requestRender();
+                return { ...handled, render: true };
+            }
+            return undefined;
         }
         const localRow = event.y - this.editorRow;
         const nativeRow = this.editorNativeRows[localRow];

@@ -13,6 +13,9 @@ this extension on an unmodified release does not apply the patch.
 
 ## Measured startup
 
+These figures describe extension v0.1.0. The v0.2.0 prerelease includes fresh
+[raw benchmark results](patched-host.md) for the native UI/session changes.
+
 Measured on **Linux ARM64**, Neoverse-N1, Pi-Bolt 1.0.7 / Pi 1.4.0, JIT off, on
 2026-10-30. **Android/Termux has not been measured or tested on a device.**
 
@@ -43,8 +46,7 @@ before each run; it does not flush the operating system's page cache.
 CPU, flags, binary hashes, package-file hashes, versions, and cache-file counts.
 [Native build provenance](benchmark-results-native-build.json) records the source
 commit, copied-kit/runtime hashes, patch hash, and inactive build sentinel.
-The patched test executable is `/tmp/side-query-native-pi/pi`; it is a temporary
-Linux build, not an installed or published replacement.
+The original test executable was `/tmp/side-query-native-pi/pi`. The [patched host prerelease](patched-host.md) builds the same patch from verified release inputs, runs the revised extension's checks, and includes new provenance and measurements.
 
 ## Reproduce the checks
 

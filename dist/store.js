@@ -43,10 +43,13 @@ function parseIndex(value) {
 function parseThread(value, id) {
     if (!object(value) || value.version !== 1 || !summary(value) || value.id !== id
         || typeof value.draft !== "string" || !Array.isArray(value.messages)
+        || (value.sessionEntries !== undefined && (!Array.isArray(value.sessionEntries)
+            || !value.sessionEntries.every((entry) => object(entry) && typeof entry.type === "string")))
         || !value.messages.every((message) => object(message) && typeof message.role === "string")) {
         throw new Error("This side conversation is invalid. Its file was preserved.");
     }
-    return { ...toSummary(value), draft: value.draft, messages: value.messages };
+    return { ...toSummary(value), draft: value.draft, messages: value.messages,
+        ...(value.sessionEntries === undefined ? {} : { sessionEntries: value.sessionEntries }) };
 }
 function missing(error) {
     return object(error) && error.code === "ENOENT";

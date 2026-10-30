@@ -1,0 +1,102 @@
+name: Patched Pi-Bolt ARM64 prerelease
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patched-pi-bolt.yml
+      - scripts/build-patched-host.sh
+      - scripts/benchmark.mjs
+      - scripts/check-native-loader.mjs
+      - scripts/terminal-smoke.py
+      - patches/**
+      - src/**
+      - tests/**
+      - dist/**
+      - index.mjs
+      - package.json
+      - package-lock.json
+      - tsconfig*.json
+      - docs/patched-host.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patched-pi-bolt-1.0.7-native-loader
+  cancel-in-progress: false
+
+jobs:
+  build-test-release:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+      - name: Check and build the extension
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+          npm test
+          npm run build
+          if ! git diff --quiet; then
+            echo 'Build output differs from the committed source. Commit the generated files before publishing.' >&2
+            exit 1
+          fi
+      - name: Build from pinned upstream release archives
+        id: host
+        run: bash scripts/build-patched-host.sh "$RUNNER_TEMP/patched-host"
+      - name: Prove the stock and patched loaders with real hosts
+        run: |
+          node scripts/check-native-loader.mjs --binary '${{ steps.host.outputs.stock_binary }}' --allow-jiti
+          node scripts/check-native-loader.mjs --binary '${{ steps.host.outputs.patched_binary }}'
+      - name: Verify both terminal interfaces
+        run: |
+          python3 scripts/terminal-smoke.py --binary '${{ steps.host.outputs.stock_binary }}'
+          python3 scripts/terminal-smoke.py --binary '${{ steps.host.outputs.patched_binary }}'
+      - name: Measure the current extension on both real hosts
+        env:
+          RELEASE_DIR: ${{ steps.host.outputs.release_dir }}
+        run: |
+          node scripts/benchmark.mjs \
+            --binary '${{ steps.host.outputs.stock_binary }}' \
+            --native-binary '${{ steps.host.outputs.patched_binary }}' \
+            --runs 24 --out "$RELEASE_DIR/benchmark-results.json"
+          cd "$RELEASE_DIR"
+          sha256sum benchmark-results.json >> SHA256SUMS
+      - name: Publish the first verified prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_DIR: ${{ steps.host.outputs.release_dir }}
+        run: |
+          tag=pi-bolt-1.0.7-native-loader
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$RUNNER_TEMP/existing-release.json" 2> "$RUNNER_TEMP/release-check-error.txt"; then
+            echo "Release $tag already exists; keeping its original files."
+            exit 0
+          fi
+          if ! grep -q 'HTTP 404' "$RUNNER_TEMP/release-check-error.txt"; then
+            cat "$RUNNER_TEMP/release-check-error.txt" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > "$RUNNER_TEMP/existing-tag.json" 2> "$RUNNER_TEMP/tag-check-error.txt"; then
+            echo "Tag $tag exists without a release; inspect it before publishing." >&2
+            exit 1
+          fi
+          if ! grep -q 'HTTP 404' "$RUNNER_TEMP/tag-check-error.txt"; then
+            cat "$RUNNER_TEMP/tag-check-error.txt" >&2
+            exit 1
+          fi
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title 'Pi-Bolt 1.0.7 native .mjs loader · Linux ARM64' \
+            --prerelease --notes-file "$RELEASE_DIR/release-notes.md" \
+            "$RELEASE_DIR/pi-bolt-1.0.7-native-loader-linux-arm64.tar.gz" \
+            "$RELEASE_DIR/SHA256SUMS" "$RELEASE_DIR/build-provenance.json" \
+            "$RELEASE_DIR/benchmark-results.json"

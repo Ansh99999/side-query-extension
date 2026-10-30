@@ -1,5 +1,6 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Component, Focusable } from "@earendil-works/pi-tui";
+import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Component, Focusable, MarkdownTheme } from "@earendil-works/pi-tui";
+import type { FileEntry, ToolRenderers } from "@earendil-works/pi-coding-agent";
 
 export interface ThreadSummary {
   id: string;
@@ -13,6 +14,8 @@ export interface ThreadSummary {
 export interface SideThread extends ThreadSummary {
   draft: string;
   messages: AgentMessage[];
+  /** Native session history retains compaction and context edits across restarts. */
+  sessionEntries?: FileEntry[];
 }
 
 export interface DisplayMessage {
@@ -26,14 +29,46 @@ export interface SideScreenState {
   currentId?: string;
   screen: "chat" | "list";
   messages: DisplayMessage[];
+  /** Pi's complete messages, including thinking blocks and tool-call arguments. */
+  nativeMessages?: AgentMessage[];
+  streamingAssistantTimestamp?: number;
+  activeTools?: SideToolExecution[];
+  toolRenderers?: Record<string, ToolRenderers>;
+  ui?: {
+    outputPaddingX?: number;
+    editorPaddingX?: number;
+    autocompleteMaxVisible?: number;
+    hideThinkingBlock?: boolean;
+    hiddenThinkingLabel?: string;
+    toolOutputExpanded?: boolean;
+    showImages?: boolean;
+    imageWidthCells?: number;
+    thinkingLevel?: ThinkingLevel;
+    cwd?: string;
+    markdownTheme?: MarkdownTheme;
+    codeBlockIndent?: string;
+  };
   draft: string;
   busy: boolean;
   activity?: string;
   error?: string;
 }
 
+export interface SideToolExecution {
+  toolCallId: string;
+  toolName: string;
+  args?: unknown;
+  result?: {
+    content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+    details?: unknown;
+    isError: boolean;
+    durationMs?: number;
+  };
+  isPartial?: boolean;
+}
+
 export interface ScreenActions {
-  submit(text: string): Promise<void>;
+  submit(text: string, streamingBehavior?: "steer" | "followUp"): Promise<void>;
   newThread(): Promise<void>;
   openThread(id: string): Promise<void>;
   deleteThread(id: string): Promise<void>;

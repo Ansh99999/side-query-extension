@@ -1,6 +1,6 @@
 # Side Query Extension
 
-Lightweight `/btw` side conversations for **Pi-Bolt 1.0.7 / Pi 1.4.0 or later**. Uses Pi's own terminal UI, theme, model registry, and agent loop. No runtime dependencies, startup requests, polling, or background agents.
+Lightweight `/btw` side conversations for **Pi-Bolt 1.0.7 / Pi 1.4.0 or later**. Uses Pi's native message components, editor, theme, and `AgentSession` prompt handler. No runtime dependencies, startup requests, polling, or background agents.
 
 ## Install
 
@@ -32,18 +32,19 @@ Main conversation title
   Build options                                  1 hour ago
 ```
 
-Titles are generated once after the first successful answer; activity times use the current theme's gray text. The screen uses Pi's native multiline editor and Markdown renderer, with small contextual hints at the bottom.
+Titles are generated once after the first successful answer; activity times use the current theme's gray text. The chat uses the same native user, assistant, thinking, code, tool, and editor components as Pi-Bolt's main conversation. It has no chat title or corner tool badge. The footer contains only `^N new · ^D delete · Alt+T tools · ^/ main`. Press Alt+Tab to reveal `Tool on` or `Tool off` when needed; the status disappears when typing or navigating.
 
 | Key | Action inside the side screen |
 | --- | --- |
-| Ctrl+N | New thread |
-| Ctrl+D | Delete the selected thread after confirmation |
+| ^N | New thread |
+| ^D | Delete the selected thread after confirmation |
 | Alt+T | Enable or disable tools for this thread |
-| Ctrl+/ | Return to main; press again there to resume |
-| Ctrl+C | Cancel the current side reply or pending confirmation |
+| ^/ | Return to main; press again there to resume |
+| ^C | Cancel the current side reply or pending confirmation |
+| Alt+Tab | Show tool availability |
 | PgUp / PgDn | Scroll the reply |
 
-Search by typing a title fragment. Enter opens the selection; arrows choose a thread and Tab switches between search and list. Shift+Enter inserts a newline in the editor. Legacy terminals may encode Ctrl+/ and Ctrl+_ identically; modern Ctrl+- keeps Pi's undo behavior.
+Search by typing a title fragment. Enter opens the selection; arrows choose a thread and Tab switches between search and list. Shift+Enter inserts a newline in the editor. During a reply, Enter steers the native session and Alt+Enter queues a follow-up; cancellation returns waiting prompts to the draft. Legacy terminals may encode Ctrl+/ and Ctrl+_ identically; modern Ctrl+- keeps Pi's undo behavior.
 
 ## Tools and main actions
 
@@ -59,13 +60,13 @@ The side thread itself runs no parallel task. There is at most one active side r
 
 Threads belong to a main session and resume with it. The extension stores a small index and separate transcripts under `~/.pi/agent/side-query/<hash-of-main-session-id>/`, or the configured Pi agent directory. It loads the index on opening and reads each transcript on selection. Writes are atomic and user-only. Draft text, titles, and the tools toggle persist; the main editor draft and side messages stay in their respective conversations. Ephemeral sessions keep side data in memory.
 
-Only explicit questions make model requests. The first successful answer may make one small additional request for its title. Each reply is limited to eight model turns; context and tool output are bounded. Large active turns require a shorter question or a fresh thread. Terminal output is sanitized, and pasted control bytes cannot approve a dialog or trigger shortcuts.
+Only explicit questions make model requests. The first successful answer may make one small additional request for its title. Replies use Pi-Bolt's native model settings, retry policy, history projection, and automatic compaction. The previous custom eight-turn limit and history trimming are removed. Native session entries preserve compaction summaries and context edits across restarts. The quoted parent excerpt and helper metadata remain bounded. Terminal output is sanitized, and pasted control bytes cannot approve a dialog or trigger shortcuts.
 
 ## Startup and Termux
 
 The entry only registers the command, shortcut, and lifecycle handlers. Conversation code loads on first use. Stock Pi-Bolt still initializes its source loader for filesystem extensions, including JavaScript, so a small entry alone cannot remove that fixed cost.
 
-The repository includes a small Pi-Bolt native `.mjs` loader patch and reproducible offline benchmarks. See [measurements and Termux instructions](docs/performance.md). The patch addresses the loader cost without requiring `pi-bolt compile` on Android; it needs a Pi-Bolt build that includes the patch. It is supplied separately and is not an upstream release or a change to your installed binary. Native-loaded code edits require a restart; `/reload` reruns the factory but may retain cached module code.
+The repository includes a small Pi-Bolt native `.mjs` loader patch and reproducible offline benchmarks. See [the patched host download and installation notes](docs/patched-host.md) and [measurements and Termux instructions](docs/performance.md). The patch addresses the loader cost without requiring `pi-bolt compile` on Android; it needs a Pi-Bolt build that includes the patch. The tested host is distributed separately as an experimental prerelease; it is not an upstream release. Native-loaded code edits require a restart; `/reload` reruns the factory but may retain cached module code.
 
 ## Development
 
@@ -78,6 +79,6 @@ python3 scripts/terminal-smoke.py --binary pi-bolt
 node scripts/benchmark.mjs --help
 ```
 
-Development uses Node.js 22.19+ and TypeScript. Pi supplies all runtime modules. Commit `dist/` with source changes so installation stays build-free. Tests use temporary directories and local dummy providers; the terminal smoke test exercises navigation, persistence, cancelled replies, and an approved main file change against the real binary.
+Development uses Node.js 22.19+ and TypeScript. Pi supplies all runtime modules. Commit `dist/` with source changes so installation stays build-free. Tests use temporary directories, native sessions with dummy model runtimes, and local dummy providers; the terminal smoke test exercises navigation, persistence, cancelled replies, and an approved main file change against the real binary.
 
 MIT licensed.

@@ -4,7 +4,30 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { FileEntry } from "@earendil-works/pi-coding-agent";
 import { SideThreadStore } from "../src/store.ts";
+
+test("native compaction history survives a restart without changing entry identities", async () => {
+  const root = await mkdtemp(join(tmpdir(), "side-query-native-history-"));
+  try {
+    const store = await SideThreadStore.open(root, "parent");
+    const thread = await store.create();
+    const entries: FileEntry[] = [
+      { type: "session", version: 3, id: thread.id, timestamp: new Date(1).toISOString(), cwd: "/test" },
+      { type: "message", id: "message1", parentId: null, timestamp: new Date(2).toISOString(),
+        message: { role: "user", content: "Keep this context", timestamp: 2 } },
+      { type: "compaction", id: "compact1", parentId: "message1", timestamp: new Date(3).toISOString(),
+        summary: "Earlier context", firstKeptEntryId: "message1", tokensBefore: 12000 },
+    ];
+    thread.sessionEntries = entries;
+    await store.save(thread);
+    const reopened = await SideThreadStore.open(root, "parent");
+    assert.deepEqual((await reopened.load(thread.id)).sessionEntries, entries);
+    await reopened.recordReceipt(thread.id, receipt("native-outcome"));
+    assert.deepEqual((await reopened.load(thread.id)).sessionEntries, entries);
+    assert.equal((await reopened.load(thread.id)).messages[0].role, "custom");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 test("threads persist separately per parent with retained drafts, title, and tool choice", async () => {
   const root = await mkdtemp(join(tmpdir(), "side-query-store-"));

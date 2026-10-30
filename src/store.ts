@@ -55,10 +55,13 @@ function parseIndex(value: unknown): ThreadIndex {
 function parseThread(value: unknown, id: string): SideThread {
   if (!object(value) || value.version !== 1 || !summary(value) || value.id !== id
     || typeof value.draft !== "string" || !Array.isArray(value.messages)
+    || (value.sessionEntries !== undefined && (!Array.isArray(value.sessionEntries)
+      || !value.sessionEntries.every((entry) => object(entry) && typeof entry.type === "string")))
     || !value.messages.every((message) => object(message) && typeof message.role === "string")) {
     throw new Error("This side conversation is invalid. Its file was preserved.");
   }
-  return { ...toSummary(value as unknown as ThreadSummary), draft: value.draft, messages: value.messages as SideThread["messages"] };
+  return { ...toSummary(value as unknown as ThreadSummary), draft: value.draft, messages: value.messages as SideThread["messages"],
+    ...(value.sessionEntries === undefined ? {} : { sessionEntries: value.sessionEntries as SideThread["sessionEntries"] }) };
 }
 
 function missing(error: unknown): boolean {

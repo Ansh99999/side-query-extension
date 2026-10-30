@@ -1,5 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createReadToolDefinition, createGrepToolDefinition, createFindToolDefinition, createLsToolDefinition,
+  getAgentDir, SettingsManager, type AgentSessionEvent, type ExtensionAPI, type ExtensionContext, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { MainActionBridge, ACTION_RECEIPT, ACTION_TOOL } from "./actions.ts";
 import { SideQueryEngine, type MainActionRequest } from "./engine.ts";
 import { SideThreadStore } from "./store.ts";
@@ -70,6 +71,7 @@ export class SideQueryApp {
   private readonly observations: ToolObservation[] = [];
   private readonly subscriptions: Array<() => void> = [];
   private readonly pi: ExtensionAPI;
+  private promptOptions?: ReturnType<ExtensionCommandContext["getSystemPromptOptions"]>;
   private state: SideScreenState = {
     parentTitle: "Main conversation", threads: [], screen: "list", messages: [], draft: "", busy: false,
   };
@@ -130,6 +132,7 @@ export class SideQueryApp {
         this.thread = undefined;
         this.lastAssistant = "";
         this.observations.length = 0;
+        this.promptOptions = undefined;
         const store = await SideThreadStore.open(getAgentDir(), parentId, Boolean(ctx.sessionManager.getSessionFile()));
         if (!stillCurrent()) return;
         this.store = store;
@@ -140,6 +143,11 @@ export class SideQueryApp {
       if (!stillCurrent()) return;
       this.thread = thread;
       this.ctx = ctx;
+      this.promptOptions = (ctx as Partial<ExtensionCommandContext>).getSystemPromptOptions?.() ?? this.promptOptions;
+      if (ctx.cwd) this.state.toolRenderers = Object.fromEntries([
+        createReadToolDefinition(ctx.cwd), createGrepToolDefinition(ctx.cwd),
+        createFindToolDefinition(ctx.cwd), createLsToolDefinition(ctx.cwd),
+      ].map((tool) => [tool.name, { renderCall: tool.renderCall, renderResult: tool.renderResult, renderShell: tool.renderShell }])) as unknown as NonNullable<SideScreenState["toolRenderers"]>;
       this.state.parentTitle = mainTitle(ctx);
       this.state.error = undefined;
       this.state.busy = false;
@@ -148,8 +156,8 @@ export class SideQueryApp {
       this.syncState();
       this.visible = true;
       this.closing = false;
-      const overlay = ctx.ui.custom<void>((tui, theme, _keys, done) => {
-        const screen = new SideQueryScreen(tui, theme, () => this.state, this.actions());
+      const overlay = ctx.ui.custom<void>((tui, theme, keys, done) => {
+        const screen = new SideQueryScreen(tui, () => ctx.ui.theme ?? theme, () => this.state, this.actions(), keys);
         if (!stillCurrent() || !this.visible) {
           screen.dispose();
           done();
@@ -172,7 +180,7 @@ export class SideQueryApp {
 
   private actions(): ScreenActions {
     return {
-      submit: (text) => this.submit(text),
+      submit: (text, behavior) => this.submit(text, behavior),
       newThread: () => this.navigate(() => this.newThread()),
       openThread: (id) => this.navigate(() => this.openThread(id)),
       deleteThread: (id) => this.navigate(() => this.deleteThread(id)),
@@ -184,7 +192,7 @@ export class SideQueryApp {
         void this.persistCurrent().catch((error) => this.error(error));
       },
       close: () => this.close(),
-      cancel: () => { this.engine.abort(); },
+      cancel: () => { this.cancelReply(); },
     };
   }
 
@@ -192,6 +200,22 @@ export class SideQueryApp {
     this.state.threads = this.store?.list() ?? [];
     this.state.currentId = this.thread?.id;
     this.state.messages = this.thread ? displayMessages(this.thread.messages) : [];
+    this.state.nativeMessages = this.thread?.messages ?? [];
+    if (this.ctx) {
+      const settings = SettingsManager.inMemory(this.pi.getSettings?.() ?? {});
+      this.state.ui = {
+        outputPaddingX: settings.getOutputPad(),
+        editorPaddingX: settings.getEditorPaddingX(),
+        autocompleteMaxVisible: settings.getAutocompleteMaxVisible(),
+        hideThinkingBlock: settings.getHideThinkingBlock(),
+        showImages: settings.getShowImages(),
+        imageWidthCells: settings.getImageWidthCells(),
+        thinkingLevel: this.pi.getThinkingLevel?.() ?? "off",
+        toolOutputExpanded: this.ctx.ui.getToolsExpanded?.() ?? false,
+        cwd: this.ctx.cwd,
+        codeBlockIndent: settings.getCodeBlockIndent(),
+      };
+    }
     this.state.draft = this.thread?.draft ?? "";
   }
 
@@ -213,8 +237,37 @@ export class SideQueryApp {
   }
 
   private async stopReply(): Promise<void> {
-    this.engine.abort();
+    this.cancelReply();
     await this.running;
+  }
+
+  private cancelReply(): void {
+    const queued = this.engine.abort();
+    if (queued && this.thread) {
+      const waiting = [...queued.steering, ...queued.followUp].filter(Boolean).join("\n\n");
+      const text = waiting === this.thread.draft ? waiting : [waiting, this.thread.draft].filter(Boolean).join("\n\n");
+      this.thread.draft = text;
+      this.state.draft = text;
+    }
+  }
+
+  private onSideEvent(event: AgentSessionEvent): void {
+    if ((event.type === "message_start" || event.type === "message_update") && event.message.role === "assistant") {
+      this.state.streamingAssistantTimestamp = event.message.timestamp;
+    } else if (event.type === "message_end" && event.message.role === "assistant") {
+      this.state.streamingAssistantTimestamp = undefined;
+    } else if (event.type === "tool_execution_start") {
+      this.state.activeTools ??= [];
+      this.state.activeTools.push({ toolCallId: event.toolCallId, toolName: event.toolName, args: event.args, isPartial: true });
+    } else if (event.type === "tool_execution_update" || event.type === "tool_execution_end") {
+      const tool = this.state.activeTools?.find((item) => item.toolCallId === event.toolCallId);
+      if (tool) {
+        const result = event.type === "tool_execution_update" ? event.partialResult : event.result;
+        tool.result = { ...result, isError: event.type === "tool_execution_end" && event.isError };
+        tool.isPartial = event.type !== "tool_execution_end";
+      }
+    }
+    this.refresh();
   }
 
   private async persistCurrent(): Promise<void> {
@@ -287,14 +340,27 @@ export class SideQueryApp {
     ].filter(Boolean).join("\n\n").slice(-14_000);
   }
 
-  private async submit(text: string): Promise<void> {
+  private async submit(text: string, behavior: "steer" | "followUp" = "steer"): Promise<void> {
     const question = text.trim();
-    if (!question || !this.thread || !this.visible || this.state.busy || this.closing) return;
+    if (!question || !this.thread || !this.visible || this.closing) return;
     const command = /^\/btw(?:\s+([\s\S]*))?$/.exec(question);
     if (command) {
       if (this.thread) this.thread.draft = "";
       await this.navigate(() => this.newThread());
       if (command[1]?.trim()) await this.submit(command[1]);
+      return;
+    }
+    if (this.state.busy) {
+      try {
+        await this.engine.queue(question, behavior);
+        this.thread.draft = "";
+        this.state.draft = "";
+      } catch (error) {
+        if (!this.thread.draft) this.thread.draft = question;
+        this.state.draft = this.thread.draft;
+        throw error;
+      }
+      this.refresh();
       return;
     }
     const ctx = this.ctx!, thread = this.thread, store = this.store!, revision = this.revision;
@@ -304,6 +370,7 @@ export class SideQueryApp {
     this.state.busy = true;
     this.state.error = undefined;
     this.state.activity = "Thinking";
+    this.state.activeTools = [];
     this.state.draft = "";
     this.refresh();
     const run = async (): Promise<void> => {
@@ -314,8 +381,18 @@ export class SideQueryApp {
             store.mergeReceipts(thread);
             if (this.thread !== thread || revision !== this.revision) return;
             this.state.messages = displayMessages(messages);
+            this.state.nativeMessages = messages;
             this.state.activity = activity;
             this.refresh();
+          },
+          onEvent: (event) => {
+            if (this.thread !== thread || revision !== this.revision) return;
+            this.onSideEvent(event);
+          },
+          settings: () => this.pi.getSettings?.() ?? {},
+          promptOptions: () => this.promptOptions,
+          onTools: (tools) => {
+            if (this.thread === thread && revision === this.revision) this.state.toolRenderers = tools;
           },
           mainStatus: () => this.mainStatus(),
           mainTools: () => this.pi.getAllTools().filter((tool) => tool.name !== ACTION_TOOL),
@@ -329,6 +406,8 @@ export class SideQueryApp {
         if (revision === this.revision && this.thread === thread) {
           this.state.busy = false;
           this.state.activity = undefined;
+          this.state.streamingAssistantTimestamp = undefined;
+          this.state.activeTools = [];
           this.syncState();
           this.refresh();
         }
@@ -368,7 +447,7 @@ export class SideQueryApp {
     if (this.closing || !this.visible) return;
     this.closing = true;
     this.visible = false;
-    this.engine.abort();
+    this.cancelReply();
     this.screen?.dispose();
     this.screen = undefined;
     this.closeOverlay?.();
