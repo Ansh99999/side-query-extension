@@ -109,3 +109,38 @@ test("a cancelled old-parent reply cannot leave the replacement screen busy", as
     assert.equal(replacementMounted, true);
   } finally { SideThreadStore.open = original; }
 });
+
+test("an explicit prompt during cancellation waits for native shutdown and starts the next turn", async () => {
+  const original = SideThreadStore.open;
+  SideThreadStore.open = async () => store(async () => structuredClone(thread));
+  try {
+    const f = fixture();
+    const mounted = deferred<void>(), overlay = deferred<void>(), cancelled = deferred<void>();
+    f.ctx.ui.custom = (() => { mounted.resolve(); return overlay.promise; }) as typeof f.ctx.ui.custom;
+    const controller = f.app as unknown as {
+      engine: { run(thread: SideThread, text: string): Promise<void>; abort(): { steering: string[]; followUp: string[] }; queue(): Promise<void> };
+      submit(text: string): Promise<void>;
+      cancelReply(): void;
+      state: { busy: boolean };
+      close(): void;
+      closePromise: Promise<void>;
+    };
+    const turns: string[] = [];
+    controller.engine.run = async (_thread, text) => { turns.push(text); if (turns.length === 1) await cancelled.promise; };
+    controller.engine.abort = () => ({ steering: [], followUp: [] });
+    controller.engine.queue = async () => { throw new Error("Cannot enqueue into the cancelled session"); };
+    const opened = f.app.open(f.ctx, true);
+    await mounted.promise;
+    const first = controller.submit("Cancel this turn");
+    controller.cancelReply();
+    const next = controller.submit("New explicit turn");
+    await Promise.resolve();
+    assert.deepEqual(turns, ["Cancel this turn"]);
+    cancelled.resolve();
+    await Promise.all([first, next]);
+    assert.deepEqual(turns, ["Cancel this turn", "New explicit turn"]);
+    assert.equal(controller.state.busy, false);
+    controller.close(); overlay.resolve();
+    await opened; await controller.closePromise;
+  } finally { SideThreadStore.open = original; }
+});

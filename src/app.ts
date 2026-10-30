@@ -65,6 +65,7 @@ export class SideQueryApp {
   private closing = false;
   private closePromise: Promise<void> = Promise.resolve();
   private running?: Promise<void>;
+  private replyCancelled = false;
   private navigation: Promise<void> = Promise.resolve();
   private revision = 0;
   private lastAssistant = "";
@@ -242,6 +243,7 @@ export class SideQueryApp {
   }
 
   private cancelReply(): void {
+    if (this.state.busy) this.replyCancelled = true;
     const queued = this.engine.abort();
     if (queued && this.thread) {
       const waiting = [...queued.steering, ...queued.followUp].filter(Boolean).join("\n\n");
@@ -351,6 +353,14 @@ export class SideQueryApp {
       return;
     }
     if (this.state.busy) {
+      if (this.replyCancelled) {
+        const thread = this.thread, revision = this.revision;
+        await this.running;
+        if (this.visible && !this.closing && this.thread === thread && revision === this.revision) {
+          await this.submit(question, behavior);
+        }
+        return;
+      }
       try {
         await this.engine.queue(question, behavior);
         this.thread.draft = "";
@@ -368,6 +378,7 @@ export class SideQueryApp {
     thread.draft = "";
     thread.updatedAt = Date.now();
     this.state.busy = true;
+    this.replyCancelled = false;
     this.state.error = undefined;
     this.state.activity = "Thinking";
     this.state.activeTools = [];
