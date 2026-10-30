@@ -1,0 +1,23 @@
+{
+  "source": "User-provided report; raw samples and device identity were not supplied",
+  "reportedAt": "2026-10-30",
+  "runsPerCase": 3,
+  "conditions": {
+    "sameInstalledExtensionsAndSettings": true,
+    "offline": true,
+    "pseudoTerminal": true,
+    "modelResponseOrNetworkTimeIncluded": false
+  },
+  "cases": [
+    { "name": "stock", "medianFirstTerminalOutputSeconds": 0.120, "approximateMedianPeakRssMbAsReported": 66 },
+    { "name": "released custom patched build", "medianFirstTerminalOutputSeconds": 0.126, "approximateMedianPeakRssMbAsReported": 82 }
+  ],
+  "interpretation": {
+    "meaningfulStartupImprovementEstablished": false,
+    "approximatePeakRssIncreaseMbAsReported": 16,
+    "approximatePeakRssIncreasePercent": 24,
+    "firstTerminalOutputIsReadinessProxy": true,
+    "generalBenchmark": false,
+    "causeOfMemoryDifferenceEstablished": false
+  }
+}

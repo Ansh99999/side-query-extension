@@ -6,21 +6,41 @@ The experimental native loader host is built from Pi-Bolt 1.0.7 / Pi 1.4.0 for
 package on disk. Restart Pi-Bolt after changing native ESM files; `/reload` can
 retain cached modules.
 
+Revision 2 builds from the release kit's original CLI entry and worker entries,
+with the original compiler options. It includes no generated extension wrapper
+or compiled-in sentinel. The first prerelease remains available unchanged.
+
+This download is experimental and has no established general interactive startup
+or RSS advantage across arbitrary extension loadouts or on the reported device.
+A user-reported three-run device comparison found roughly
+the same startup time and about 16 MB more peak RSS. See the
+[interactive startup and memory report](performance.md#interactive-startup-and-memory)
+before choosing it as a performance optimization.
+
+That report describes the first release. Revision 2 changes its build route;
+its terminal resource results are published separately for comparison.
+
 The prerelease is created after GitHub Actions passes the extension's type check,
 tests and build, real stock and patched host loader checks, and both terminal
-smoke tests, followed by fresh 24-run benchmarks of both hosts. An existing
-prerelease's files are preserved. These links become
-available only when that first build succeeds:
+smoke tests, then completes a fresh 24-run CLI microbenchmark and 12-run terminal
+resource measurements of both hosts. Completing these measurements does not
+require a particular performance improvement. Existing prerelease files are
+preserved. These links become available when the revision 2 build succeeds:
 
-- [Patched host prerelease](https://github.com/Ansh99999/side-query-extension/releases/tag/pi-bolt-1.0.7-native-loader)
-- [Linux ARM64 archive](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader/pi-bolt-1.0.7-native-loader-linux-arm64.tar.gz)
-- [SHA256SUMS](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader/SHA256SUMS)
-- [Build provenance](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader/build-provenance.json)
-- [Fresh benchmark results](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader/benchmark-results.json)
+- [Revision 2 prerelease](https://github.com/Ansh99999/side-query-extension/releases/tag/pi-bolt-1.0.7-native-loader-r2)
+- [Linux ARM64 revision 2 archive](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader-r2/pi-bolt-1.0.7-native-loader-r2-linux-arm64.tar.gz)
+- [SHA256SUMS](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader-r2/SHA256SUMS)
+- [Build provenance](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader-r2/build-provenance.json)
+- [CLI microbenchmark](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader-r2/benchmark-results.json)
+- [Terminal startup and resource results](https://github.com/Ansh99999/side-query-extension/releases/download/pi-bolt-1.0.7-native-loader-r2/terminal-resource-results.json)
 
-The attached benchmark measures the source included in this release. The older
-figures in `docs/benchmark-results.json` remain the v0.1.0 reference. Both are
-Linux ARM64 measurements; they do not establish Android performance.
+The terminal benchmark measures first output, native first frame and startup
+completion events, resident memory, and peak RSS across baseline, side-query,
+and mixed extension loadouts. These events do not guarantee that every background
+service is ready. The CLI
+microbenchmark measures piped process startup through `--list-models` and exit.
+The older figures in `docs/benchmark-results.json` remain the v0.1.0 reference.
+These are Linux ARM64 measurements; they do not establish Android performance.
 
 ## Linux ARM64
 
@@ -31,7 +51,7 @@ installation directory:
 ```sh
 sha256sum --ignore-missing --check SHA256SUMS
 mkdir -p "$HOME/.local/share/side-query-patched-pi"
-tar -xzf pi-bolt-1.0.7-native-loader-linux-arm64.tar.gz \
+tar -xzf pi-bolt-1.0.7-native-loader-r2-linux-arm64.tar.gz \
   -C "$HOME/.local/share/side-query-patched-pi"
 "$HOME/.local/share/side-query-patched-pi/pi-bolt-linux-arm64/pi" --version
 "$HOME/.local/share/side-query-patched-pi/pi-bolt-linux-arm64/pi"
@@ -92,17 +112,27 @@ bash scripts/build-patched-host.sh /absolute/path/to/new-output-directory
 The script requires Linux ARM64, Git, Python 3, tar, gzip, sha256sum, and curl for
 uncached inputs. An optional second argument selects a local archive cache. It
 verifies fixed SHA-256 hashes for the **full** baseline host, compile kit and
-runtime from upstream `bolt-v1.0.7`, patches only the copied kit, and builds using
-an isolated agent directory without inherited credentials. The compiler runtime
-and kit contain the build tools and dependencies; no runtime source compilation
-is required.
+runtime from upstream `bolt-v1.0.7` and patches only the copied kit. It invokes the
+trusted runtime with the kit's compiler options and AOT settings, resolving kit
+paths and preserving the original CLI and worker entries. It appends the output
+path and `PIBOLT_BUILD` value extracted from the verified stock executable.
+The compiler receives a sanitized base environment; no existing agent settings
+or inherited credentials are used.
+The compiler runtime and kit contain the build tools and dependencies; no runtime
+source compilation is required. `SQ_STOCK_ARCHIVE` can select a local stock
+archive separately from the cache directory; the same pinned checksum applies.
 
-The empty `native-build-sentinel` factory satisfies the upstream compiler's
-requirement for an extension set and has no registrations or actions. It does
-not embed side-query. `build-provenance.json` records upstream and extension source
-commits, input and output hashes, CPU settings and whether the source checkout
-was clean. Binary hashes can differ across rebuilds because the compiler records
-temporary paths and build metadata.
+Separate `--version` diagnostics verify that the direct build uses its AOT image
+and preserves stock's static heap and AOT image dimensions. All stock sibling
+resources are copied and checked before the optional DOOM example is omitted.
+These checks describe the executable; resident memory still requires the terminal
+measurements. Side-query remains on disk, and there is no compiled-in sentinel.
+
+`build-provenance.json` records upstream and extension source commits, original
+entries and compiler arguments, stock build macro, input and output hashes, CPU
+settings, heap/image checks, and whether the source checkout was clean. Binary
+hashes can differ across rebuilds because the compiler records temporary paths
+and build metadata.
 
 The archive retains upstream `LICENSE`, `LICENSE.pi`, and `THIRD_PARTY_NOTICES.md`,
 adds `LICENSE.side-query`, the exact loader patch, and `SOURCE.md` with pinned

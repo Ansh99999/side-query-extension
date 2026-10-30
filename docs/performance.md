@@ -11,6 +11,78 @@ The included host patch adds a native `.mjs` path before that initialization and
 uses Pi-Bolt's existing module bridge. This is a proposed Pi-Bolt change; installing
 this extension on an unmodified release does not apply the patch.
 
+## Interactive startup and memory
+
+The command benchmarks below do not establish an interactive startup or memory
+benefit. They measure an isolated `--list-models` process with one extension and
+do not collect RSS. A mixed extension loadout can still initialize jiti for other
+TypeScript/JavaScript entries even when side-query takes the native path.
+
+The user supplied this separate device report on 2026-10-30: three runs per host,
+the same installed extensions and settings, offline, through a pseudo-terminal.
+
+| Host | Median first terminal output | Approximate median peak RSS |
+| --- | ---: | ---: |
+| Stock | 120 ms | 66 MB |
+| Released custom patched build | 126 ms | 82 MB |
+
+This report shows no meaningful startup improvement and about 16 MB (24%) more
+peak resident memory for the patched build in that workload. First output is a
+startup proxy, not a precise fully-ready measurement; three runs and an
+unspecified device do not support general performance claims. The report excludes
+model response/network time. [The supplied report](user-startup-resource-report.json)
+records these limitations; its raw samples were not supplied.
+
+The released host was rebuilt through `pi-bolt compile` with a generated entry
+wrapper and an inactive sentinel extension. It is not a build that differs from
+stock only in the loader patch. The matching unpatched rebuild below controls for
+that build route. Its local RSS was similar to stock, so the wrapper is not an established explanation of the
+reported 16 MB increase. Do not assume the patched download is faster or uses
+less memory with an arbitrary installed extension loadout.
+
+## Matched interactive controls
+
+Measured locally on Linux ARM64 with four logical CPUs on 2026-10-30: 12 measured
+runs per host/loadout after two warmups, rotating launch order. The hosts share
+identical isolated dummy-model settings and staged runtime package files. Native
+UI, tools and themes are enabled; MCP, skills, prompt templates and context-file
+discovery are disabled. No question is submitted and no model response is timed.
+These are separate laboratory measurements, not a reproduction on the user's device.
+
+Each cell is **native first-frame median in ms / peak RSS median in MiB**.
+
+| Loadout | Stock | Unpatched wrapper rebuild | Original patched release | Stock-entry patched prototype |
+| --- | ---: | ---: | ---: | ---: |
+| No extensions | 56.9 / 65.9 | 56.1 / 65.8 | 56.3 / 65.7 | 56.7 / 66.0 |
+| Side-query only | 86.3 / 88.8 | 85.4 / 88.8 | 61.1 / 70.4 | 60.7 / 70.6 |
+| Side-query + one TypeScript fixture | 86.4 / 88.9 | 86.3 / 89.0 | 85.9 / 88.4 | 86.3 / 88.3 |
+
+The patch helped the isolated side-query-only loadout here. Adding a harmless
+TypeScript extension caused jiti to initialize in both hosts; the startup and
+RSS advantage then disappeared. The unpatched wrapper rebuild did not show a
+meaningful RSS increase over stock in these fixtures. The device's reported
+16 MB increase remains unexplained; these local numbers do not invalidate it.
+
+Revision 2 preserves the stock CLI entry, worker entries, compiler options, CPU
+settings and runtime stamp, with no generated wrapper or sentinel. This removes
+a build difference and matches stock's static heap/image dimensions; it is not
+a demonstrated fix for the device-specific RSS report.
+
+[Raw samples, hashes, flags and memory snapshots](terminal-resource-results.json)
+include first terminal output, native `frame.written 1`, native `startup.done`,
+and peak RSS from `wait4` plus sampled `/proc` high-water marks. First output may
+be a capability query. A native frame/startup event does not guarantee every
+background service is ready. The trace and `/proc` sampling add instrumentation
+overhead; peak RSS includes the native 150 ms post-init dwell and shutdown.
+Jiti cache is warm and the OS page cache is not flushed.
+
+```sh
+python3 scripts/benchmark-terminal.py \
+  --case stock=/absolute/path/to/stock/pi \
+  --case patched=/absolute/path/to/patched/pi \
+  --runs 12 --warmups 2 --out terminal-results.json
+```
+
 ## Measured startup
 
 These figures describe extension v0.1.0. The v0.2.0 prerelease includes fresh
@@ -116,43 +188,24 @@ change the installed Pi-Bolt. The example requires Linux ARM64 and Pi-Bolt 1.0.7
 
 ```sh
 SQ_PACKAGE=/absolute/path/to/side-query-extension
-SQ_KIT_ARCHIVE=/absolute/path/to/pi-bolt-kit-linux-arm64.tar.gz
-SQ_RUNTIME_ARCHIVE=/absolute/path/to/pi-bolt-runtime-linux-arm64.tar.gz
 SQ_BUILD=$(mktemp -d)
-export SQ_BUILD
-tar -xzf "$SQ_KIT_ARCHIVE" -C "$SQ_BUILD"
-git -C "$SQ_BUILD/pi-bolt-kit-linux-arm64/tree" apply --no-index \
-  --include=packages/coding-agent/dist/core/extensions/loader.js \
-  "$SQ_PACKAGE/patches/pi-bolt-native-mjs.patch"
-node --input-type=module <<'JS'
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-const root = process.env.SQ_BUILD;
-for (const name of ['agent', 'cwd', 'sentinel']) mkdirSync(join(root, name));
-writeFileSync(join(root, 'sentinel', 'package.json'), JSON.stringify({
-  name: 'native-build-sentinel', type: 'module', pi: { extensions: ['./index.mjs'] }
-}));
-writeFileSync(join(root, 'sentinel', 'index.mjs'), 'export default function () {}\n');
-writeFileSync(join(root, 'agent', 'settings.json'), JSON.stringify({
-  packages: [join(root, 'sentinel')]
-}));
-JS
-cd "$SQ_BUILD/cwd"
-PI_CODING_AGENT_DIR="$SQ_BUILD/agent" pi-bolt compile \
-  --kit "$SQ_BUILD/pi-bolt-kit-linux-arm64" \
-  --runtime "$SQ_RUNTIME_ARCHIVE" --out "$SQ_BUILD/output"
-node "$SQ_PACKAGE/scripts/check-native-loader.mjs" --binary "$SQ_BUILD/output/pi"
-node "$SQ_PACKAGE/scripts/benchmark.mjs" --binary pi-bolt \
-  --package "$SQ_PACKAGE" --native-binary "$SQ_BUILD/output/pi" \
-  --runs 24 --out "$SQ_BUILD/results.json"
+bash "$SQ_PACKAGE/scripts/build-patched-host.sh" "$SQ_BUILD/host"
+node "$SQ_PACKAGE/scripts/check-native-loader.mjs" --binary "$SQ_BUILD/host/pi-bolt-linux-arm64/pi"
+python3 "$SQ_PACKAGE/scripts/benchmark-terminal.py" \
+  --case stock="$SQ_BUILD/host/stock/pi-bolt-linux-arm64/pi" \
+  --case patched="$SQ_BUILD/host/pi-bolt-linux-arm64/pi" \
+  --runs 12 --out "$SQ_BUILD/terminal-results.json"
 ```
 
-Pi-Bolt's compile planner rejects an empty extension set. The one-line sentinel
-satisfies that build requirement. Benchmark configurations never discover its
-package, so its factory is not loaded; **the side-query extension is not compiled
-into this native-path test host**. The measured build retained the release kit's
-`bun-linux-arm64` target and baseline CPU settings. Keep the executable beside
-the assets Pi-Bolt copies into its output directory.
+The script verifies the matching full stock, kit and runtime archives. It applies
+only the loader distribution hunk and calls the bundled runtime with the kit's
+original CLI and worker entries, compiler options and AOT settings with resolved
+paths, and the build macro extracted from verified stock. The base environment
+is sanitized. It does not use `pi-bolt compile` or compile
+in an inactive extension. Stock version, static heap and AOT image dimensions and
+copied runtime assets are checked independently. Keep the executable beside all
+its runtime assets. The earlier v0.1.0 and first-release builds used a generated
+wrapper with a sentinel, as recorded in their original provenance files.
 
 For a normal source checkout instead, check/apply only the source hunk, rebuild
 Pi's distribution, then use the upstream build workflow:

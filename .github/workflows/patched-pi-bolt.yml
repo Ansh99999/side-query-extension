@@ -1,4 +1,4 @@
-name: Patched Pi-Bolt ARM64 prerelease
+name: Patched Pi-Bolt ARM64 revision 2 prerelease
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - .github/workflows/patched-pi-bolt.yml
       - scripts/build-patched-host.sh
       - scripts/benchmark.mjs
+      - scripts/benchmark-terminal.py
       - scripts/check-native-loader.mjs
       - scripts/terminal-smoke.py
       - patches/**
@@ -24,7 +25,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: patched-pi-bolt-1.0.7-native-loader
+  group: patched-pi-bolt-1.0.7-native-loader-r2
   cancel-in-progress: false
 
 jobs:
@@ -62,7 +63,7 @@ jobs:
         run: |
           python3 scripts/terminal-smoke.py --binary '${{ steps.host.outputs.stock_binary }}'
           python3 scripts/terminal-smoke.py --binary '${{ steps.host.outputs.patched_binary }}'
-      - name: Measure the current extension on both real hosts
+      - name: Measure piped CLI spawn to exit on both real hosts
         env:
           RELEASE_DIR: ${{ steps.host.outputs.release_dir }}
         run: |
@@ -72,12 +73,23 @@ jobs:
             --runs 24 --out "$RELEASE_DIR/benchmark-results.json"
           cd "$RELEASE_DIR"
           sha256sum benchmark-results.json >> SHA256SUMS
+      - name: Measure interactive startup and terminal resources
+        # Successful completion produces data; it does not enforce an RSS or latency budget.
+        env:
+          RELEASE_DIR: ${{ steps.host.outputs.release_dir }}
+        run: |
+          python3 scripts/benchmark-terminal.py \
+            --case 'stock=${{ steps.host.outputs.stock_binary }}' \
+            --case 'direct=${{ steps.host.outputs.patched_binary }}' \
+            --runs 12 --out "$RELEASE_DIR/terminal-resource-results.json"
+          cd "$RELEASE_DIR"
+          sha256sum terminal-resource-results.json >> SHA256SUMS
       - name: Publish the first verified prerelease
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_DIR: ${{ steps.host.outputs.release_dir }}
         run: |
-          tag=pi-bolt-1.0.7-native-loader
+          tag=pi-bolt-1.0.7-native-loader-r2
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$RUNNER_TEMP/existing-release.json" 2> "$RUNNER_TEMP/release-check-error.txt"; then
             echo "Release $tag already exists; keeping its original files."
             exit 0
@@ -95,8 +107,8 @@ jobs:
             exit 1
           fi
           gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title 'Pi-Bolt 1.0.7 native .mjs loader · Linux ARM64' \
+            --title 'Pi-Bolt 1.0.7 native .mjs loader r2 · Linux ARM64' \
             --prerelease --notes-file "$RELEASE_DIR/release-notes.md" \
-            "$RELEASE_DIR/pi-bolt-1.0.7-native-loader-linux-arm64.tar.gz" \
+            "$RELEASE_DIR/pi-bolt-1.0.7-native-loader-r2-linux-arm64.tar.gz" \
             "$RELEASE_DIR/SHA256SUMS" "$RELEASE_DIR/build-provenance.json" \
-            "$RELEASE_DIR/benchmark-results.json"
+            "$RELEASE_DIR/benchmark-results.json" "$RELEASE_DIR/terminal-resource-results.json"

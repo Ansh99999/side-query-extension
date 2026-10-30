@@ -66,6 +66,8 @@ Only explicit questions make model requests. The first successful answer may mak
 
 The entry only registers the command, shortcut, and lifecycle handlers. Conversation code loads on first use. Stock Pi-Bolt still initializes its source loader for filesystem extensions, including JavaScript, so a small entry alone cannot remove that fixed cost.
 
+The patched host is experimental. A reported device comparison found no meaningful startup gain and about 16 MB more peak RSS. Local matched tests show that startup savings disappear when another extension already needs jiti; the device memory difference remains unexplained. See the [interactive startup and memory report](docs/performance.md#interactive-startup-and-memory).
+
 The repository includes a small Pi-Bolt native `.mjs` loader patch and reproducible offline benchmarks. See [the patched host download and installation notes](docs/patched-host.md) and [measurements and Termux instructions](docs/performance.md). The patch addresses the loader cost without requiring `pi-bolt compile` on Android; it needs a Pi-Bolt build that includes the patch. The tested host is distributed separately as an experimental prerelease; it is not an upstream release. Native-loaded code edits require a restart; `/reload` reruns the factory but may retain cached module code.
 
 ## Development
